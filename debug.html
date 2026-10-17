@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台灣生存戰：除錯測試版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex justify-center items-center">
+  <div class="w-full max-w-md bg-slate-900 p-6 rounded-2xl shadow-2xl text-center space-y-4">
+    <h1 class="text-3xl font-black text-white">🇹🇼 台灣生存戰 (除錯版)</h1>
+    <p class="text-sm text-slate-400">如果這個頁面會動，代表是我們前面多個 JS 檔案互相打架惹的禍！</p>
+    
+    <div id="test-box" class="bg-slate-800 p-4 rounded-xl text-amber-400 font-mono text-xl">
+      ⏱️ 計時器：0 秒
+    </div>
+
+    <button onclick="startTest()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-lg">
+      🚀 點我測試計時器
+    </button>
+  </div>
+
+  <script>
+    let seconds = 0;
+    function startTest() {
+      setInterval(() => {
+        seconds++;
+        document.getElementById("test-box").textContent = `⏱️ 計時器：${seconds} 秒`;
+      }, 1000);
+      alert("計時器已啟動！");
+    }
+  </script>
+</body>
+</html>
