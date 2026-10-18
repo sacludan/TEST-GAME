@@ -647,33 +647,52 @@ function triggerSearch() {
     promptText.textContent = (totalSearchMs === PLAYER_FAST_SEARCH_MS) ? "⚡ 從從容容 1.5x 極速搜刮中..." : "🔍 搜刮中...";
     promptText.classList.remove("hidden");
   }
-  if (progressBox) progressBox.classList.remove("hidden");
-  if (progressBar) progressBar.style.width = "0%";
+  if (progressBox) progressBox.classList.remove('hidden');
+  // 將可能掉落的當區圖片趁搜刮的1.5秒先暖好快取。
+  preloadZoneItemArt(searchedZoneId);
+  if (progressBar) progressBar.style.transform = 'scaleX(0)';
 
   updateUI();
 
-  let elapsed = 0;
+  // Web Animations 在 iOS Safari 由合成層連續繪製，避免每100ms修改 width 的階梯感。
+  // 計時仍由 JS 控制；動畫只負責視覺，不更動搜刮時間/消耗/掉落。
+  let barAnimation = null;
+  if (progressBar && typeof progressBar.animate === 'function') {
+    barAnimation = progressBar.animate(
+      [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      { duration: totalSearchMs, easing: 'linear', fill: 'forwards' }
+    );
+  } else if (progressBar) {
+    progressBar.style.transition = 'none';
+    void progressBar.offsetWidth;
+    progressBar.style.transition = `transform ${totalSearchMs}ms linear`;
+    requestAnimationFrame(() => { progressBar.style.transform = 'scaleX(1)'; });
+  }
+
+  const startedAt = performance.now();
+  const clearSearchBar = () => {
+    if (barAnimation) { barAnimation.cancel(); barAnimation = null; }
+    if (progressBar) {
+      progressBar.style.transition = 'none';
+      progressBar.style.transform = 'scaleX(0)';
+    }
+    if (progressBox) progressBox.classList.add('hidden');
+    if (promptText) promptText.classList.add('hidden');
+  };
   const searchInterval = setInterval(() => {
     if (state.gameOver || state.inCombat || !state.isSearching || p.zone !== searchedZoneId || state.closedZones.includes(searchedZoneId)) {
       clearInterval(searchInterval);
       state.isSearching = false;
-      if (progressBox) progressBox.classList.add("hidden");
-      if (promptText) promptText.classList.add("hidden");
+      clearSearchBar();
       return;
     }
-
-    elapsed += 100;
-    const percent = Math.min(100, (elapsed / totalSearchMs) * 100);
-    if (progressBar) progressBar.style.width = `${percent}%`;
-
-    if (elapsed >= totalSearchMs) {
+    if (performance.now() - startedAt >= totalSearchMs) {
       clearInterval(searchInterval);
       state.isSearching = false;
-      if (progressBox) progressBox.classList.add("hidden");
-      if (promptText) promptText.classList.add("hidden");
+      clearSearchBar();
       executeSearchFinish();
     }
-  }, 100);
+  }, 40);
 }
 
 // 搜刮先抽出物資並暫時保留，待玩家決定才拾取；忽略則歸還原地物資池。
@@ -703,13 +722,21 @@ function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
   return found;
 }
 
-// V19.13: 立法院首批 12 種圖片測試。僅對確實存在的圖片輸出 <img>，其他道具維持文字版面。
-// 道具圖片按需載入，不會為了等待圖片暫停搜刮、拾取或背包操作。
-const AVAILABLE_ITEM_ART = new Set([
+// V19.19: 42 種確實存在的道具圖（立法院原有 12 + 本批 30）。
+// 未做圖的道具保留原本文字/分類圖示，不要求不存在的圖片。
+const ORIGINAL_12_ITEM_ART = [
   'protest_megaphone', 'plastic_stool', 'netizen_cert',
   'paper', 'pen', 'red_pen', 'money', 'newspaper',
   'shirt', 'yellow_vest', 'water', 'book'
-]);
+];
+const NEW_30_ITEM_ART = [
+  'deed', 'jade_seal', 'wafer', 'battery', 'camera_module', 'scrap_iron',
+  'rusty_nail', 'exhaust_pipe', 'tape', 'plastic_bag', 'lighter', 'talisman',
+  'red_thread', 'incense', 'joss_paper', 'cult_flyer', 'ancestral_recipe', 'feather',
+  'condom', 'quicklime', 'bandage', 'polydar', 'cooking_wine', 'whiskey',
+  'pork', 'garlic', 'rice', 'tofu', 'egg', 'soy_sauce'
+];
+const AVAILABLE_ITEM_ART = new Set([...ORIGINAL_12_ITEM_ART, ...NEW_30_ITEM_ART]);
 
 function getItemArtUrl(itemId) {
   const normalizedId = ItemRegistry.ALIAS[itemId] || itemId;
@@ -718,22 +745,39 @@ function getItemArtUrl(itemId) {
   return item?.image || item?.imageUrl || item?.iconSrc || null;
 }
 
-// V19.14: 首頁就開始背景下載＋解碼已製作的道具圖，提前暖好瀏覽器圖片快取。
-// 這些載入不阻塞開局、搜刮或拾取按鈕。保留 Image 參照可減少反覆解碼。
+// V19.19: 優先暖原有12張，新增30張分批背景預載，不阻塞首頁及搜刮。
+// 開始搜刮時額外優先暖該區可能掉落的圖片，減少第一次見到圖片時的空框。
 const ITEM_ART_PRELOAD_CACHE = new Map();
+function preloadItemArt(itemId) {
+  const normalizedId = ItemRegistry.ALIAS[itemId] || itemId;
+  if (!AVAILABLE_ITEM_ART.has(normalizedId)) return;
+  if (ITEM_ART_PRELOAD_CACHE.has(normalizedId)) return;
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = getItemArtUrl(normalizedId);
+  const ready = image.decode ? image.decode().then(() => true).catch(() => false)
+    : new Promise(resolve => {
+        image.onload = () => resolve(true);
+        image.onerror = () => resolve(false);
+      });
+  ITEM_ART_PRELOAD_CACHE.set(normalizedId, { image, ready });
+}
 function preloadKnownItemArt() {
-  for (const itemId of AVAILABLE_ITEM_ART) {
-    if (ITEM_ART_PRELOAD_CACHE.has(itemId)) continue;
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = getItemArtUrl(itemId);
-    const ready = image.decode ? image.decode().then(() => true).catch(() => false)
-      : new Promise(resolve => {
-          image.onload = () => resolve(true);
-          image.onerror = () => resolve(false);
-        });
-    ITEM_ART_PRELOAD_CACHE.set(itemId, { image, ready });
+  ORIGINAL_12_ITEM_ART.forEach(preloadItemArt);
+  let cursor = 0;
+  function warmNewItemsBatch() {
+    for (let i = 0; i < 4 && cursor < NEW_30_ITEM_ART.length; i++, cursor++) {
+      preloadItemArt(NEW_30_ITEM_ART[cursor]);
+    }
+    if (cursor < NEW_30_ITEM_ART.length) window.setTimeout(warmNewItemsBatch, 180);
   }
+  window.setTimeout(warmNewItemsBatch, 350);
+}
+function preloadZoneItemArt(zoneId) {
+  const zone = getSafeCurrentZone(zoneId);
+  if (!zone || !Array.isArray(zone.drops)) return;
+  const ids = new Set(zone.drops);
+  for (const id of ids) preloadItemArt(id);
 }
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', preloadKnownItemArt, { once: true });
@@ -956,9 +1000,9 @@ function renderEquipSixGrid(p) {
              onclick="openItemInfoModal('${equipped.id}', 'equip', '${slot.key}')"
              class="fast-drag-item relative overflow-hidden p-1 rounded-md border ${rarity.border} ${rarity.bg} flex flex-col justify-between cursor-pointer hover:brightness-110 transition select-none">
           ${getItemArtUrl(equipped.id)
-            ? `<div class="absolute inset-0 flex items-center justify-center opacity-60 pointer-events-none">${itemArtMarkup(equipped.id,'w-full h-full object-contain pointer-events-none')}</div>` : ''}
-          <div class="relative z-10 text-[9px] font-black ${rarity.text} truncate leading-tight bg-slate-950/65 rounded-sm">${equipped.name}</div>
-          <div class="relative z-10 text-[8px] font-mono text-amber-300/90 text-right leading-none bg-slate-950/65 rounded-sm">${statStr}</div>
+            ? `<div class="absolute inset-0 flex items-center justify-center opacity-80 pointer-events-none">${itemArtMarkup(equipped.id,'w-full h-full object-contain pointer-events-none')}</div>` : ''}
+          <div class="equip-overlay-label relative z-10 text-[9px] font-black ${rarity.text} truncate leading-tight">${equipped.name}</div>
+          <div class="equip-overlay-label relative z-10 text-[8px] font-mono text-amber-300 text-right leading-none">${statStr}</div>
         </div>
       `;
     } else {
