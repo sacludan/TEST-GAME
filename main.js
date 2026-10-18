@@ -710,6 +710,29 @@ function getItemArtUrl(itemId) {
   return item?.image || item?.imageUrl || item?.iconSrc || null;
 }
 
+// V19.14: 首頁就開始背景下載＋解碼已製作的道具圖，提前暖好瀏覽器圖片快取。
+// 這些載入不阻塞開局、搜刮或拾取按鈕。保留 Image 參照可減少反覆解碼。
+const ITEM_ART_PRELOAD_CACHE = new Map();
+function preloadKnownItemArt() {
+  for (const itemId of AVAILABLE_ITEM_ART) {
+    if (ITEM_ART_PRELOAD_CACHE.has(itemId)) continue;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = getItemArtUrl(itemId);
+    const ready = image.decode ? image.decode().then(() => true).catch(() => false)
+      : new Promise(resolve => {
+          image.onload = () => resolve(true);
+          image.onerror = () => resolve(false);
+        });
+    ITEM_ART_PRELOAD_CACHE.set(itemId, { image, ready });
+  }
+}
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', preloadKnownItemArt, { once: true });
+} else {
+  preloadKnownItemArt();
+}
+
 function itemArtMarkup(itemId, classNames = 'w-9 h-9 shrink-0 object-contain pointer-events-none') {
   const url = getItemArtUrl(itemId);
   if (!url) return '';
@@ -747,29 +770,30 @@ function renderLootChoice() {
   const icon = document.getElementById('loot-choice-icon');
   const typeIcons = { weapon: '⚔️', head: '🪖', chest: '👕', arm: '🧤', leg: '👟', acc: '💍', food: '🍱', material: '🧩' };
   if (icon) icon.textContent = typeIcons[item.type] || '📦';
-  // 未來只要把 PNG 放進 assets/items/，檔名與道具 id 一致，便可直接出圖；
-  // 也允許日後在道具資料中明確指定 image / imageUrl / iconSrc。
+  // 有實際圖片的道具不再先閃出 Emoji 預設圖；圖片尚在網路上時只保留暗色圖框。
+  // 首頁已先行預載＋解碼，正常情況下拾取視窗開啟時圖片可直接顯示。
   const itemImage = document.getElementById('loot-choice-image');
   const placeholder = document.getElementById('loot-choice-image-placeholder');
   if (itemImage && placeholder) {
-    // 避免上一次圖片尚未載入，就錯誤覆蓋下一件道具的預覽。
-    itemImage.onload = () => {
-      if ((state.pendingLootQueue || [])[0]?.itemId !== current.itemId) return;
-      itemImage.classList.remove('hidden');
-      placeholder.classList.add('hidden');
-    };
-    itemImage.onerror = () => {
-      if ((state.pendingLootQueue || [])[0]?.itemId !== current.itemId) return;
-      itemImage.classList.add('hidden');
-      placeholder.classList.remove('hidden');
-    };
-    itemImage.classList.add('hidden');
-    placeholder.classList.remove('hidden');
     const imageUrl = getItemArtUrl(current.itemId);
     itemImage.alt = `${item.name}的道具圖片`;
     itemImage.decoding = 'async';
-    if (imageUrl) itemImage.src = imageUrl;
-    else itemImage.removeAttribute('src');
+    if (imageUrl) {
+      placeholder.classList.add('hidden');
+      itemImage.classList.remove('hidden');
+      itemImage.onerror = () => {
+        if ((state.pendingLootQueue || [])[0]?.itemId !== current.itemId) return;
+        itemImage.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+      };
+      // 不重設相同 URL，避免每次刷新/連續搜刮都重新觸發圖片狀態。
+      if (itemImage.getAttribute('src') !== imageUrl) itemImage.src = imageUrl;
+    } else {
+      itemImage.onerror = null;
+      itemImage.classList.add('hidden');
+      itemImage.removeAttribute('src');
+      placeholder.classList.remove('hidden');
+    }
   }
   document.getElementById('loot-choice-queue').textContent = queue.length > 1 ? `還有 ${queue.length - 1} 件待確認` : '點旁邊空白處即可忽略';
   const takeButton = document.getElementById('loot-choice-take');
