@@ -80,6 +80,13 @@ const LobbyManager = {
     }).join("");
 
     const cur = GAME_CHARACTERS[this.selectedPlayerId];
+    // 只有「科文哲」配置立繪；不改變其他角色的選擇與技能邏輯。
+    // 沿用已存在的 img，不反覆重設 src，切角時不會重新下載圖片。
+    const characterArtwork = document.getElementById('lobby-char-art');
+    const characterGlow = document.getElementById('lobby-char-art-glow');
+    const showArtwork = Boolean(cur && cur.id === 'kewenzhe');
+    if (characterArtwork) characterArtwork.classList.toggle('hidden', !showArtwork);
+    if (characterGlow) characterGlow.classList.toggle('hidden', !showArtwork);
     if (preview && cur) {
       preview.innerHTML = `
         <div class="flex justify-between items-center border-b border-slate-800 pb-1 mb-1.5 gap-2">
@@ -234,10 +241,15 @@ const LobbyManager = {
     }
     try {
       if (typeof preloadTacticalMap === 'function' || typeof preloadZoneSceneBackgrounds === 'function') {
-        await Promise.all([
+        const [mapReady, scenesReady] = await Promise.all([
           typeof preloadTacticalMap === 'function' ? preloadTacticalMap() : Promise.resolve(true),
           typeof preloadZoneSceneBackgrounds === 'function' ? preloadZoneSceneBackgrounds() : Promise.resolve(true)
         ]);
+        if (!mapReady || !scenesReady) {
+          if (mapLoading) mapLoading.textContent = '⚠️ 有場景圖片載入失敗，請確認連線，重新按「開始遊戲」即可重試。';
+          this._startingGame = false;
+          return;
+        }
       }
     } catch (error) {
       console.error('地圖載入失敗:', error);
