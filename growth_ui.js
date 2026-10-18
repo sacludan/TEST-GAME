@@ -45,7 +45,7 @@ function renderCharacterGrowthStatus(entity) {
   const masteryProgress = getGrowthProgress(entity.masteryExp, GROWTH_MASTERY_THRESHOLDS);
   const bonus = getGrowthLevelBonus(entity);
   // 第二頁的兩條經驗條與主頁共用高度，不擠壓裝備區。
-  growthSetText('status-level-label', `Lv.${level}`);
+  growthSetText('status-level-label', `👤 角色等級 Lv.${level}`);
   growthSetText('status-level-exp', levelProgress.maxed ? 'MAX' : `EXP ${levelProgress.current}/${levelProgress.need}`);
   growthSetWidth('status-level-bar', levelProgress.percent);
   growthSetText('status-mastery-label', `⚔ 戰鬥熟練 ${mastery.rank}`);
