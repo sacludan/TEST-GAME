@@ -1,0 +1,158 @@
+[
+  {
+    "id": "taipei101",
+    "name": "台北101",
+    "source": "C83AF758-198F-4CD0-9185-38F5D22A978E.jpeg",
+    "original_dimensions": [
+      1448,
+      1086
+    ],
+    "scene_file": "assets/locations/taipei101.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 163592
+  },
+  {
+    "id": "ntu",
+    "name": "台大校園",
+    "source": "42EE1539-E24A-4563-9308-3886377AC99E(1).jpeg",
+    "original_dimensions": [
+      1190,
+      1322
+    ],
+    "scene_file": "assets/locations/ntu.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 266866
+  },
+  {
+    "id": "ntu_hospital",
+    "name": "台大醫院",
+    "source": "DFF34871-FAD2-4EBD-8E69-649CBA49A8F1(1).jpeg",
+    "original_dimensions": [
+      1190,
+      1322
+    ],
+    "scene_file": "assets/locations/ntu_hospital.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 251620
+  },
+  {
+    "id": "songshan",
+    "name": "松山機場",
+    "source": "CD98B8A5-C56B-40A8-917F-2742040338A9(1).jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/songshan.webp",
+    "mode": "fit",
+    "bytes": 162194
+  },
+  {
+    "id": "wugu_ind",
+    "name": "五股工業區",
+    "source": "9C4AA8B5-00CC-4E68-821A-E4E156C90341(1).jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/wugu_ind.webp",
+    "mode": "fit",
+    "bytes": 187308
+  },
+  {
+    "id": "neihu",
+    "name": "內湖科學園區",
+    "source": "31621BAB-E96C-4061-BE90-0935306032F1(1).jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/neihu.webp",
+    "mode": "fit",
+    "bytes": 221346
+  },
+  {
+    "id": "ximen",
+    "name": "西門町",
+    "source": "08093D74-CECF-4DD2-B00B-6558D3B29F93(1).jpeg",
+    "original_dimensions": [
+      1254,
+      1254
+    ],
+    "scene_file": "assets/locations/ximen.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 200952
+  },
+  {
+    "id": "guanghua",
+    "name": "光華商場",
+    "source": "91DD73CE-0BEA-4F99-8048-8B78B6298249(1).jpeg",
+    "original_dimensions": [
+      1254,
+      1254
+    ],
+    "scene_file": "assets/locations/guanghua.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 199850
+  },
+  {
+    "id": "taipeistation",
+    "name": "台北車站",
+    "source": "DC503D09-0F9A-4908-83C2-C8CB2691055B(1).jpeg",
+    "original_dimensions": [
+      1254,
+      1254
+    ],
+    "scene_file": "assets/locations/taipeistation.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 167452
+  },
+  {
+    "id": "market",
+    "name": "果菜批發市場",
+    "source": "06AD21D0-98CC-49A9-A502-78C6486171B5(1).jpeg",
+    "original_dimensions": [
+      1448,
+      1086
+    ],
+    "scene_file": "assets/locations/market.webp",
+    "mode": "preserved-with-soft-edges",
+    "bytes": 185506
+  },
+  {
+    "id": "ly",
+    "name": "立法院",
+    "source": "ly_scene.png",
+    "original_dimensions": [
+      1448,
+      1086
+    ],
+    "scene_file": "assets/locations/ly.webp",
+    "mode": "center-cover",
+    "bytes": 113834
+  },
+  {
+    "id": "jiufen",
+    "name": "九份老街",
+    "source": "jiufen_scene.png",
+    "original_dimensions": [
+      941,
+      1672
+    ],
+    "scene_file": "assets/locations/jiufen.webp",
+    "mode": "center-cover",
+    "bytes": 218026
+  },
+  {
+    "id": "keelung",
+    "name": "野柳漁港",
+    "source": "keelung_scene.png",
+    "original_dimensions": [
+      941,
+      1672
+    ],
+    "scene_file": "assets/locations/keelung.webp",
+    "mode": "center-cover",
+    "bytes": 207332
+  }
+]
