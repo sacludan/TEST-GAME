@@ -317,16 +317,34 @@ function getTotalDef(entity) {
 // V19.20 地圖預載：從首頁開始就載入和解碼；保留同一個 Image 實例，
 // 進入遊戲時直接掛載到地圖 DOM，避免第一次點移動時重新解碼/建立圖片。
 const TACTICAL_MAP_URL = 'taipei_map_clean_v12.jpg';
+// V19.28：22 個區域場景背景統一 4:5 WebP，在大廳預載並解碼完畢，進遊戲後切換不需重新下載。
 const ZONE_SCENE_IMAGES = Object.freeze({
-  ly: 'assets/locations/ly_scene.png',
-  jiufen: 'assets/locations/jiufen_scene.png',
-  keelung: 'assets/locations/keelung_scene.png'
+  taipei101: 'assets/locations/taipei101.webp',
+  ntu: 'assets/locations/ntu.webp',
+  ntu_hospital: 'assets/locations/ntu_hospital.webp',
+  songshan: 'assets/locations/songshan.webp',
+  wugu_ind: 'assets/locations/wugu_ind.webp',
+  neihu: 'assets/locations/neihu.webp',
+  ximen: 'assets/locations/ximen.webp',
+  guanghua: 'assets/locations/guanghua.webp',
+  taipeistation: 'assets/locations/taipeistation.webp',
+  market: 'assets/locations/market.webp',
+  ly: 'assets/locations/ly.webp',
+  jiufen: 'assets/locations/jiufen.webp',
+  keelung: 'assets/locations/keelung.webp',
+  tamsui: 'assets/locations/tamsui.webp',
+  beitou: 'assets/locations/beitou.webp',
+  sanchong: 'assets/locations/sanchong.webp',
+  yangmingshan: 'assets/locations/yangmingshan.webp',
+  shilin: 'assets/locations/shilin.webp',
+  taipeiarena: 'assets/locations/taipeiarena.webp',
+  longshan_temple: 'assets/locations/longshan_temple.webp',
+  zoo: 'assets/locations/zoo.webp',
+  xinyi: 'assets/locations/xinyi.webp'
 });
 let tacticalMapPreloadedImage = null;
 let tacticalMapPreloadPromise = null;
 let lastTacticalMapSignature = null;
-let zoneScenePreloadPromise = null;
-const zoneSceneImageCache = new Map();
 function preloadTacticalMap() {
   if (tacticalMapPreloadPromise) return tacticalMapPreloadPromise;
   tacticalMapPreloadPromise = new Promise((resolve, reject) => {
@@ -355,26 +373,90 @@ function preloadTacticalMap() {
   return tacticalMapPreloadPromise;
 }
 
-function preloadZoneSceneBackgrounds() {
-  if (zoneScenePreloadPromise) return zoneScenePreloadPromise;
-  const entries = Object.entries(ZONE_SCENE_IMAGES);
-  zoneScenePreloadPromise = Promise.all(entries.map(([zoneId, url]) => new Promise(resolve => {
+let zoneScenePreloadPromise = null;
+const zoneSceneImageCache = new Map();
+
+function updateZoneScenePreloadStatus(loaded, total, failed = false) {
+  const status = document.getElementById('scene-preload-status');
+  if (status) {
+    status.textContent = failed
+      ? `⚠️ 場景圖片有 ${total - loaded} 張載入失敗，按開始遊戲可重試` 
+      : loaded >= total
+        ? `✅ ${total} 張場景背景已預載完成`
+        : `🖼️ 場景背景預載中 ${loaded}/${total}`;
+    status.classList.toggle('text-amber-300', failed);
+    status.classList.toggle('text-emerald-400', !failed && loaded >= total);
+  }
+  const loading = document.getElementById('map-loading-status');
+  if (loading && !loading.classList.contains('hidden') && !failed && loaded < total) {
+    loading.textContent = `🗺️ 地圖與場景預載中 ${loaded}/${total}，請稍候…`;
+  }
+}
+
+function loadAndDecodeZoneScene(zoneId, url) {
+  if (zoneSceneImageCache.has(zoneId)) return Promise.resolve(true);
+  return new Promise(resolve => {
     const image = new Image();
     image.decoding = 'async';
-    image.fetchPriority = 'high';
+    image.fetchPriority = 'low';
+    let done = false;
+    // 防止極端弱網路造成載入永遠停在某一張。
+    const timeout = window.setTimeout(() => finish(false), 20000);
+    function finish(ok) {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timeout);
+      image.onload = image.onerror = null;
+      if (ok && image.naturalWidth > 0) {
+        zoneSceneImageCache.set(zoneId, image);
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    }
     image.onload = async () => {
       try {
         if (typeof image.decode === 'function') await image.decode();
-      } catch (err) {
-        // Safari 偶爾 decode 失敗，但圖片已可用時仍接受。
+      } catch (_) {
+        // 部分 Safari decode() 會失敗，已完成載入的圖片仍可直接顯示。
       }
-      zoneSceneImageCache.set(zoneId, image);
-      resolve(true);
+      finish(image.naturalWidth > 0);
     };
-    image.onerror = () => resolve(false);
+    image.onerror = () => finish(false);
     image.src = url;
-  }))).then(() => true).catch(() => {
+  });
+}
+
+function preloadZoneSceneBackgrounds() {
+  if (zoneScenePreloadPromise) return zoneScenePreloadPromise;
+  const entries = Object.entries(ZONE_SCENE_IMAGES);
+  const total = entries.length;
+  const queue = entries.filter(([id]) => !zoneSceneImageCache.has(id));
+  let cursor = 0;
+  let processed = total - queue.length;
+  let failures = 0;
+  updateZoneScenePreloadStatus(processed, total);
+  async function worker() {
+    while (cursor < queue.length) {
+      const [id, url] = queue[cursor++];
+      const ok = await loadAndDecodeZoneScene(id, url);
+      processed++;
+      if (!ok) failures++;
+      updateZoneScenePreloadStatus(processed - failures, total);
+    }
+  }
+  // 避免 iOS Safari 同時解碼多張場景導致卡頓或記憶體瞬間升高。
+  zoneScenePreloadPromise = Promise.all(
+    Array.from({length: Math.min(4, queue.length)}, worker)
+  ).then(() => {
+    const ready = failures === 0 && entries.every(([id]) => zoneSceneImageCache.has(id));
+    updateZoneScenePreloadStatus(zoneSceneImageCache.size, total, !ready);
+    if (!ready) zoneScenePreloadPromise = null; // 失敗時下次點開始可重試缺圖
+    return ready;
+  }).catch(err => {
+    console.error('場景預載失敗', err);
     zoneScenePreloadPromise = null;
+    updateZoneScenePreloadStatus(zoneSceneImageCache.size, total, true);
     return false;
   });
   return zoneScenePreloadPromise;
@@ -384,18 +466,19 @@ function updateZoneSceneBackground(zoneId) {
   const wrap = document.getElementById('zone-scene-wrap');
   const image = document.getElementById('zone-scene-image');
   if (!wrap || !image) return;
-  const url = ZONE_SCENE_IMAGES[zoneId];
-  if (!url) {
+  const cached = zoneSceneImageCache.get(zoneId);
+  if (!cached || !ZONE_SCENE_IMAGES[zoneId]) {
     wrap.classList.add('hidden');
     image.removeAttribute('src');
+    delete image.dataset.zoneId;
     return;
   }
-  const cached = zoneSceneImageCache.get(zoneId);
-  wrap.classList.remove('hidden');
-  if (image.getAttribute('src') !== url) image.src = url;
-  if (cached && cached.naturalWidth > 0) {
-    image.src = cached.currentSrc || cached.src || url;
+  // 使用已解碼的圖片 URL；同地圖重繪時不重設 src，避免閃爍。
+  if (image.dataset.zoneId !== zoneId) {
+    image.src = cached.src;
+    image.dataset.zoneId = zoneId;
   }
+  wrap.classList.remove('hidden');
 }
 
 // ==========================================
