@@ -6,77 +6,31 @@ const LobbyManager = {
   selectedPlayerId: "zhugouliang",
   selectedDifficulty: "easy",
   selectedTestBotIds: [],
-  // V19.31: nine independent character portraits, keyed by the existing character ids.
-  characterPortraits: Object.freeze({
-    zhugouliang: 'assets/characters/zhugouliang.webp',
-    hanguoyu: 'assets/characters/hanguoyu.webp',
-    kewenzhe: 'assets/characters/kewenzhe.webp',
-    laixiangde: 'assets/characters/laixiangde.webp',
-    chenaguan: 'assets/characters/chenaguan.webp',
-    yazhoutongshen: 'assets/characters/yazhoutongshen.webp',
-    chaoge: 'assets/characters/chaoge.webp',
-    wangshijian: 'assets/characters/wangshijian.webp',
-    jiangwanan: 'assets/characters/jiangwanan.webp',
+  // Nine selectable characters each have one portrait, including the original 科文哲 art.
+  characterArtworkPaths: Object.freeze({
+    zhugouliang: "assets/characters/zhugouliang.webp?v=19.31",
+    hanguoyu: "assets/characters/hanguoyu.webp?v=19.31",
+    kewenzhe: "assets/characters/kewenzhe.webp?v=19.31",
+    laixiangde: "assets/characters/laixiangde.webp?v=19.31",
+    chenaguan: "assets/characters/chenaguan.webp?v=19.31",
+    yazhoutongshen: "assets/characters/yazhoutongshen.webp?v=19.31",
+    chaoge: "assets/characters/chaoge.webp?v=19.31",
+    wangshijian: "assets/characters/wangshijian.webp?v=19.31",
+    jiangwanan: "assets/characters/jiangwanan.webp?v=19.31"
   }),
-  characterPortraitCache: Object.create(null),
+  characterArtworkCache: Object.create(null),
 
-  // Preload the small, compressed portraits early to avoid default-image flashes when switching.
+  // Decode these lightweight WebPs once in the lobby so switching characters stays responsive.
   preloadCharacterArtwork() {
-    if (typeof Image === 'undefined') return;
-    for (const [charId, file] of Object.entries(this.characterPortraits)) {
-      if (this.characterPortraitCache[charId]) continue;
-      const preload = new Image();
-      preload.decoding = 'async';
-      preload.src = file;
-      this.characterPortraitCache[charId] = preload;
-    }
-  },
-
-  updateCharacterArtwork(charId) {
-    const artwork = document.getElementById('lobby-char-art');
-    const glow = document.getElementById('lobby-char-art-glow');
-    if (!artwork) return;
-    const file = this.characterPortraits[charId];
-    if (!file) {
-      artwork.classList.add('hidden');
-      if (glow) glow.classList.add('hidden');
-      return;
-    }
-
-    // Hide old portrait immediately while any new asset is still loading.
-    if (artwork.dataset.character !== charId) {
-      artwork.classList.add('hidden');
-      if (glow) glow.classList.add('hidden');
-    }
-    let image = this.characterPortraitCache[charId];
-    if (!image && typeof Image !== 'undefined') {
-      image = new Image();
-      image.decoding = 'async';
-      image.src = file;
-      this.characterPortraitCache[charId] = image;
-    }
-
-    const displaySelectedPortrait = () => {
-      // A late asynchronous load must never override the user's newer selection.
-      if (this.selectedPlayerId !== charId) return;
-      if (artwork.dataset.character !== charId || artwork.getAttribute('src') !== file) {
-        artwork.src = file;
-        artwork.dataset.character = charId;
-      }
-      artwork.classList.remove('hidden');
-      if (glow) glow.classList.remove('hidden');
-    };
-
-    if (image && image.complete && image.naturalWidth > 0) {
-      displaySelectedPortrait();
-    } else if (image) {
-      image.addEventListener('load', displaySelectedPortrait, { once: true });
-      image.addEventListener('error', () => {
-        if (this.selectedPlayerId === charId) {
-          artwork.classList.add('hidden');
-          if (glow) glow.classList.add('hidden');
-        }
-      }, { once: true });
+    if (typeof Image === "undefined") return;
+    for (const [id, url] of Object.entries(this.characterArtworkPaths)) {
+      if (this.characterArtworkCache[id]) continue;
+      const image = new Image();
+      image.decoding = "async";
+      image.src = url;
+      this.characterArtworkCache[id] = image;
+      // Decoding in advance also avoids a blank flash when opening the modal on iPhone.
+      if (typeof image.decode === "function") image.decode().catch(() => {});
     }
   },
 
@@ -87,11 +41,11 @@ const LobbyManager = {
       this.selectedPlayerId = keys[0];
     }
     this.selectedTestBotIds = keys.filter(k => k !== this.selectedPlayerId);
-    this.preloadCharacterArtwork();
     this.renderCharacterSelector();
     this.renderTestBotsList();
     this.updateSelectedCharacterSummary();
     this.selectDifficulty(this.selectedDifficulty);
+    this.preloadCharacterArtwork();
   },
 
   updateSelectedCharacterSummary() {
@@ -154,8 +108,35 @@ const LobbyManager = {
     }).join("");
 
     const cur = GAME_CHARACTERS[this.selectedPlayerId];
-    // Each of the nine playable characters has its own portrait.
-    this.updateCharacterArtwork(cur && cur.id);
+    // Keep one <img> element; switch artwork by character ID. Hide the previous art
+    // immediately so slower network loads never display the wrong character.
+    const characterArtwork = document.getElementById('lobby-char-art');
+    const characterGlow = document.getElementById('lobby-char-art-glow');
+    const artUrl = cur && this.characterArtworkPaths[cur.id];
+    if (characterArtwork && artUrl) {
+      characterArtwork.onload = () => {
+        const active = characterArtwork.dataset.characterId === this.selectedPlayerId
+          && characterArtwork.naturalWidth > 0;
+        characterArtwork.classList.toggle('hidden', !active);
+        if (characterGlow) characterGlow.classList.toggle('hidden', !active);
+      };
+      characterArtwork.onerror = () => {
+        characterArtwork.classList.add('hidden');
+        if (characterGlow) characterGlow.classList.add('hidden');
+      };
+      if (characterArtwork.dataset.characterId !== cur.id) {
+        characterArtwork.classList.add('hidden');
+        if (characterGlow) characterGlow.classList.add('hidden');
+        characterArtwork.dataset.characterId = cur.id;
+        characterArtwork.src = artUrl;
+      }
+      const showArtwork = characterArtwork.complete && characterArtwork.naturalWidth > 0;
+      characterArtwork.classList.toggle('hidden', !showArtwork);
+      if (characterGlow) characterGlow.classList.toggle('hidden', !showArtwork);
+    } else {
+      if (characterArtwork) characterArtwork.classList.add('hidden');
+      if (characterGlow) characterGlow.classList.add('hidden');
+    }
     if (preview && cur) {
       preview.innerHTML = `
         <div class="flex justify-between items-center border-b border-slate-800 pb-1 mb-1.5 gap-2">

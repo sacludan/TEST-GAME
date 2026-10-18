@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>台灣生存戰：黑色倖存者 MVP</title>
   <link rel="preload" as="image" href="taipei_map_clean_v12.jpg" fetchpriority="high">
-  <link rel="preload" as="image" href="assets/characters/zhugouliang.webp" fetchpriority="low">
+  <link rel="preload" as="image" href="assets/characters/zhugouliang.webp?v=19.31" fetchpriority="low">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     html, body {
@@ -346,11 +346,11 @@
             <button onclick="LobbyManager.closeCharacterSelectModal()" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold">關閉</button>
           </div>
 
-          <!-- 選角上半部人物美術區：九名角色皆有專屬立繪；不擠壓下方資訊。 -->
+          <!-- 選角人物立繪區：9 位角色皆有專屬透明立繪，保留下方資訊區尺寸。 -->
           <div class="flex-1 min-h-0 flex flex-col">
             <div id="lobby-char-art-stage" class="relative flex-1 min-h-0 flex items-end justify-center overflow-hidden" aria-hidden="true">
               <div id="lobby-char-art-glow" class="hidden absolute bottom-0 inset-x-0 h-3/4 pointer-events-none" style="background:radial-gradient(ellipse at center bottom,rgba(148,163,184,.16),transparent 64%)"></div>
-              <img id="lobby-char-art" src="assets/characters/zhugouliang.webp" data-character="zhugouliang" alt="" width="640" height="1100" loading="eager" decoding="async" draggable="false"
+              <img id="lobby-char-art" src="assets/characters/zhugouliang.webp?v=19.31" alt="" width="640" height="1280" loading="eager" decoding="async" draggable="false"
                    class="hidden relative h-full max-w-full w-auto object-contain object-bottom pointer-events-none select-none"
                    style="filter:drop-shadow(0 8px 14px rgba(0,0,0,.75));-webkit-user-drag:none;" />
             </div>
@@ -859,7 +859,7 @@
   <script src="game_config.js?v=60"></script>
   
   <script src="growth.js?v=118"></script>
-  <script src="lobby.js?v=131"></script>
+  <script src="lobby.js?v=130"></script>
   <script src="ai.js?v=117"></script>
   <script src="combat.js?v=117"></script>
   <script src="main.js?v=129"></script>
