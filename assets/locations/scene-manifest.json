@@ -154,5 +154,113 @@
     "scene_file": "assets/locations/keelung.webp",
     "mode": "center-cover",
     "bytes": 207332
+  },
+  {
+    "id": "tamsui",
+    "name": "淡水老街",
+    "source": "E31D0C35-4B99-4C40-A91A-D537720EE556.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/tamsui.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 229824
+  },
+  {
+    "id": "beitou",
+    "name": "北投溫泉",
+    "source": "06B7CBD0-40B1-4C8D-9384-9175750D31DD.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/beitou.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 285308
+  },
+  {
+    "id": "sanchong",
+    "name": "三重埔",
+    "source": "2B6CB9D7-91AA-49C4-A70E-2F0E8A7BA5B5.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/sanchong.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 289472
+  },
+  {
+    "id": "yangmingshan",
+    "name": "陽明山",
+    "source": "854341E3-9E16-4EBC-B825-A379B7C84E80.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/yangmingshan.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 302048
+  },
+  {
+    "id": "shilin",
+    "name": "士林夜市",
+    "source": "5C52D895-3A74-4F91-8E8C-424400E83700.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/shilin.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 303864
+  },
+  {
+    "id": "taipeiarena",
+    "name": "台北大巨蛋",
+    "source": "9A93347E-F951-46ED-B4D0-037C26B838F1.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/taipeiarena.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 186182
+  },
+  {
+    "id": "longshan_temple",
+    "name": "龍山寺",
+    "source": "7E4D95E9-CCE4-4B8D-B417-6B7CB89770BB.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/longshan_temple.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 306660
+  },
+  {
+    "id": "zoo",
+    "name": "木柵動物園",
+    "source": "F96F54FE-5103-45A6-A736-ECD3AC153AFD.jpeg",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/zoo.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 372830
+  },
+  {
+    "id": "xinyi",
+    "name": "信義夜店區",
+    "source": "奢華霓虹未來風夜店內景.png",
+    "original_dimensions": [
+      1122,
+      1402
+    ],
+    "scene_file": "assets/locations/xinyi.webp",
+    "mode": "center-crop-4x5",
+    "bytes": 194864
   }
 ]
