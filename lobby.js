@@ -6,6 +6,79 @@ const LobbyManager = {
   selectedPlayerId: "zhugouliang",
   selectedDifficulty: "easy",
   selectedTestBotIds: [],
+  // V19.31: nine independent character portraits, keyed by the existing character ids.
+  characterPortraits: Object.freeze({
+    zhugouliang: 'assets/characters/zhugouliang.webp',
+    hanguoyu: 'assets/characters/hanguoyu.webp',
+    kewenzhe: 'assets/characters/kewenzhe.webp',
+    laixiangde: 'assets/characters/laixiangde.webp',
+    chenaguan: 'assets/characters/chenaguan.webp',
+    yazhoutongshen: 'assets/characters/yazhoutongshen.webp',
+    chaoge: 'assets/characters/chaoge.webp',
+    wangshijian: 'assets/characters/wangshijian.webp',
+    jiangwanan: 'assets/characters/jiangwanan.webp',
+  }),
+  characterPortraitCache: Object.create(null),
+
+  // Preload the small, compressed portraits early to avoid default-image flashes when switching.
+  preloadCharacterArtwork() {
+    if (typeof Image === 'undefined') return;
+    for (const [charId, file] of Object.entries(this.characterPortraits)) {
+      if (this.characterPortraitCache[charId]) continue;
+      const preload = new Image();
+      preload.decoding = 'async';
+      preload.src = file;
+      this.characterPortraitCache[charId] = preload;
+    }
+  },
+
+  updateCharacterArtwork(charId) {
+    const artwork = document.getElementById('lobby-char-art');
+    const glow = document.getElementById('lobby-char-art-glow');
+    if (!artwork) return;
+    const file = this.characterPortraits[charId];
+    if (!file) {
+      artwork.classList.add('hidden');
+      if (glow) glow.classList.add('hidden');
+      return;
+    }
+
+    // Hide old portrait immediately while any new asset is still loading.
+    if (artwork.dataset.character !== charId) {
+      artwork.classList.add('hidden');
+      if (glow) glow.classList.add('hidden');
+    }
+    let image = this.characterPortraitCache[charId];
+    if (!image && typeof Image !== 'undefined') {
+      image = new Image();
+      image.decoding = 'async';
+      image.src = file;
+      this.characterPortraitCache[charId] = image;
+    }
+
+    const displaySelectedPortrait = () => {
+      // A late asynchronous load must never override the user's newer selection.
+      if (this.selectedPlayerId !== charId) return;
+      if (artwork.dataset.character !== charId || artwork.getAttribute('src') !== file) {
+        artwork.src = file;
+        artwork.dataset.character = charId;
+      }
+      artwork.classList.remove('hidden');
+      if (glow) glow.classList.remove('hidden');
+    };
+
+    if (image && image.complete && image.naturalWidth > 0) {
+      displaySelectedPortrait();
+    } else if (image) {
+      image.addEventListener('load', displaySelectedPortrait, { once: true });
+      image.addEventListener('error', () => {
+        if (this.selectedPlayerId === charId) {
+          artwork.classList.add('hidden');
+          if (glow) glow.classList.add('hidden');
+        }
+      }, { once: true });
+    }
+  },
 
   init() {
     if (typeof GAME_CHARACTERS === "undefined") return;
@@ -14,6 +87,7 @@ const LobbyManager = {
       this.selectedPlayerId = keys[0];
     }
     this.selectedTestBotIds = keys.filter(k => k !== this.selectedPlayerId);
+    this.preloadCharacterArtwork();
     this.renderCharacterSelector();
     this.renderTestBotsList();
     this.updateSelectedCharacterSummary();
@@ -80,13 +154,8 @@ const LobbyManager = {
     }).join("");
 
     const cur = GAME_CHARACTERS[this.selectedPlayerId];
-    // 只有「科文哲」配置立繪；不改變其他角色的選擇與技能邏輯。
-    // 沿用已存在的 img，不反覆重設 src，切角時不會重新下載圖片。
-    const characterArtwork = document.getElementById('lobby-char-art');
-    const characterGlow = document.getElementById('lobby-char-art-glow');
-    const showArtwork = Boolean(cur && cur.id === 'kewenzhe');
-    if (characterArtwork) characterArtwork.classList.toggle('hidden', !showArtwork);
-    if (characterGlow) characterGlow.classList.toggle('hidden', !showArtwork);
+    // Each of the nine playable characters has its own portrait.
+    this.updateCharacterArtwork(cur && cur.id);
     if (preview && cur) {
       preview.innerHTML = `
         <div class="flex justify-between items-center border-b border-slate-800 pb-1 mb-1.5 gap-2">
