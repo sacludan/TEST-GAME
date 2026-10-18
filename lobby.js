@@ -229,11 +229,16 @@ const LobbyManager = {
     this.closeAllLobbyModals();
     const mapLoading = document.getElementById('map-loading-status');
     if (mapLoading) {
-      mapLoading.textContent = '🗺️ 正在載入地圖並準備互動區域，請稍候…';
+      mapLoading.textContent = '🗺️ 正在載入地圖、場景圖片並準備互動區域，請稍候…';
       mapLoading.classList.remove('hidden');
     }
     try {
-      if (typeof preloadTacticalMap === 'function') await preloadTacticalMap();
+      if (typeof preloadTacticalMap === 'function' || typeof preloadZoneSceneBackgrounds === 'function') {
+        await Promise.all([
+          typeof preloadTacticalMap === 'function' ? preloadTacticalMap() : Promise.resolve(true),
+          typeof preloadZoneSceneBackgrounds === 'function' ? preloadZoneSceneBackgrounds() : Promise.resolve(true)
+        ]);
+      }
     } catch (error) {
       console.error('地圖載入失敗:', error);
       if (mapLoading) mapLoading.textContent = '地圖載入失敗，請檢查網路後再按一次「開始遊戲」。';

@@ -317,9 +317,16 @@ function getTotalDef(entity) {
 // V19.20 地圖預載：從首頁開始就載入和解碼；保留同一個 Image 實例，
 // 進入遊戲時直接掛載到地圖 DOM，避免第一次點移動時重新解碼/建立圖片。
 const TACTICAL_MAP_URL = 'taipei_map_clean_v12.jpg';
+const ZONE_SCENE_IMAGES = Object.freeze({
+  ly: 'assets/locations/ly_scene.png',
+  jiufen: 'assets/locations/jiufen_scene.png',
+  keelung: 'assets/locations/keelung_scene.png'
+});
 let tacticalMapPreloadedImage = null;
 let tacticalMapPreloadPromise = null;
 let lastTacticalMapSignature = null;
+let zoneScenePreloadPromise = null;
+const zoneSceneImageCache = new Map();
 function preloadTacticalMap() {
   if (tacticalMapPreloadPromise) return tacticalMapPreloadPromise;
   tacticalMapPreloadPromise = new Promise((resolve, reject) => {
@@ -346,6 +353,49 @@ function preloadTacticalMap() {
     throw err;
   });
   return tacticalMapPreloadPromise;
+}
+
+function preloadZoneSceneBackgrounds() {
+  if (zoneScenePreloadPromise) return zoneScenePreloadPromise;
+  const entries = Object.entries(ZONE_SCENE_IMAGES);
+  zoneScenePreloadPromise = Promise.all(entries.map(([zoneId, url]) => new Promise(resolve => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.fetchPriority = 'high';
+    image.onload = async () => {
+      try {
+        if (typeof image.decode === 'function') await image.decode();
+      } catch (err) {
+        // Safari 偶爾 decode 失敗，但圖片已可用時仍接受。
+      }
+      zoneSceneImageCache.set(zoneId, image);
+      resolve(true);
+    };
+    image.onerror = () => resolve(false);
+    image.src = url;
+  }))).then(() => true).catch(() => {
+    zoneScenePreloadPromise = null;
+    return false;
+  });
+  return zoneScenePreloadPromise;
+}
+
+function updateZoneSceneBackground(zoneId) {
+  const wrap = document.getElementById('zone-scene-wrap');
+  const image = document.getElementById('zone-scene-image');
+  if (!wrap || !image) return;
+  const url = ZONE_SCENE_IMAGES[zoneId];
+  if (!url) {
+    wrap.classList.add('hidden');
+    image.removeAttribute('src');
+    return;
+  }
+  const cached = zoneSceneImageCache.get(zoneId);
+  wrap.classList.remove('hidden');
+  if (image.getAttribute('src') !== url) image.src = url;
+  if (cached && cached.naturalWidth > 0) {
+    image.src = cached.currentSrc || cached.src || url;
+  }
 }
 
 // ==========================================
@@ -864,7 +914,7 @@ function preloadZoneItemArt(zoneId) {
 }
 // 先預載、解碼地圖，再開始批次載入道具；頁面進大廳時即啟動。
 function beginBackgroundItemPreload() {
-  preloadTacticalMap().then(preloadKnownItemArt, preloadKnownItemArt);
+  Promise.allSettled([preloadTacticalMap(), preloadZoneSceneBackgrounds()]).then(preloadKnownItemArt, preloadKnownItemArt);
 }
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', beginBackgroundItemPreload, { once: true });
@@ -2385,6 +2435,7 @@ function updateUI() {
   if (zoneTitle && zObj) {
     zoneTitle.textContent = `${zObj.icon || '📍'} ${zObj.name}`;
   }
+  updateZoneSceneBackground(p.zone);
 
   const timerBadge = document.getElementById("zone-timer-badge");
   if (timerBadge) {

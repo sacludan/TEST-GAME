@@ -408,9 +408,15 @@
              ondragover="handleDragOverYellow(event)" 
              ondragleave="handleDragLeaveYellow(event)" 
              ondrop="handleDropToYellow(event)" 
-             class="flex-1 flex flex-col justify-between bg-slate-800/40 hover:bg-slate-800/70 border-2 border-amber-500/30 hover:border-amber-500/60 rounded-xl p-3 relative transition cursor-pointer select-none">
+             class="flex-1 flex flex-col justify-between bg-slate-800/40 hover:bg-slate-800/70 border-2 border-amber-500/30 hover:border-amber-500/60 rounded-xl p-3 relative transition cursor-pointer select-none overflow-hidden">
+          <div id="zone-scene-wrap" class="hidden absolute inset-0 pointer-events-none">
+            <img id="zone-scene-image" src="" alt="區域場景" loading="eager" decoding="async" fetchpriority="high" draggable="false" class="absolute inset-0 w-full h-full object-cover object-center opacity-95">
+            <div class="absolute inset-0 bg-slate-950/30"></div>
+            <div class="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-slate-950/78 via-slate-950/35 to-transparent"></div>
+            <div class="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-slate-950/86 via-slate-950/48 to-transparent"></div>
+          </div>
           
-          <div class="flex justify-between items-start border-b border-slate-700/60 pb-1.5 gap-1">
+          <div class="relative z-10 flex justify-between items-start border-b border-slate-700/60 pb-1.5 gap-1">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="text-[9px] text-slate-400 font-mono">LOCATION</span>
@@ -432,10 +438,10 @@
           </div>
 
           <!-- 固定式左上追蹤欄：絕對定位，不佔探索面板排版高度。 -->
-          <div id="target-tracker-box" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" onpointerup="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" onwheel="event.stopPropagation()" class="tracked-hud hidden bg-slate-950/60 border border-amber-600/75 rounded-lg text-left select-none" aria-label="合成追蹤樹">
+          <div id="target-tracker-box" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" onpointerup="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" onwheel="event.stopPropagation()" class="relative z-10 tracked-hud hidden bg-slate-950/60 border border-amber-600/75 rounded-lg text-left select-none" aria-label="合成追蹤樹">
           </div>
 
-          <div class="my-auto py-1 text-center space-y-2">
+          <div class="relative z-10 my-auto py-1 text-center space-y-2">
             <div id="rest-status" role="status" aria-live="polite" class="hidden pointer-events-none select-none">
               <div class="text-emerald-300 font-black text-xl tracking-wider animate-pulse">💤 休息中…</div>
               <div class="text-emerald-400/80 font-bold text-xs mt-1">體力回復 +8 SP／秒</div>
@@ -449,7 +455,7 @@
           </div>
 
           <!-- 操作區位於戰報上方；休息按鈕是適合手機觸控的 56 x 56 正方形 -->
-          <div class="flex justify-end gap-2 pb-2">
+          <div class="relative z-10 flex justify-end gap-2 pb-2">
             <button id="craft-menu-trigger" type="button" onclick="event.stopPropagation(); openCraftMenu()" aria-label="開啟合成選單" class="relative w-14 h-14 min-w-[56px] min-h-[56px] flex flex-col items-center justify-center gap-0.5 bg-amber-900/90 hover:bg-amber-800 active:scale-95 border border-amber-500/60 text-amber-100 font-black rounded-xl text-[11px] shadow transition">
               <span class="text-lg leading-none">🔨</span><span>合成</span>
               <span id="craft-menu-count" class="hidden absolute -top-1 -right-1 rounded-full bg-amber-400 text-slate-950 text-[9px] font-black min-w-4 h-4 px-0.5 items-center justify-center"></span>
@@ -461,7 +467,7 @@
           </div>
 
           <!-- 分隔線以下只保留戰報 -->
-          <div class="pt-1.5 border-t border-slate-700/40">
+          <div class="relative z-10 pt-1.5 border-t border-slate-700/40">
             <div class="h-[68px] overflow-y-auto space-y-0.5 text-[11px] font-mono text-slate-300 pr-1 custom-scrollbar">
               <div id="game-log" class="space-y-0.5"></div>
             </div>
