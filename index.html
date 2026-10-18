@@ -281,7 +281,7 @@
             </button>
 
             <div class="text-[10px] text-slate-600 text-center pb-1">
-              MVP v0.58
+              V19.17
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900 hover:bg-slate-800 border border-slate-700 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5">
@@ -478,15 +478,17 @@
         </div>
 
         <!-- 角色狀態與裝備區 -->
-        <div id="drop-zone-red" 
+        <div id="drop-zone-red" style="min-height:128.5px"
              ondragover="handleDragOverRed(event)" 
              ondragleave="handleDragLeaveRed(event)" 
              ondrop="handleDropToRed(event)" 
              class="flex gap-2 items-stretch border-2 border-rose-500/30 hover:border-rose-500/60 rounded-xl p-1 bg-slate-950/40 transition relative">
           
-          <div class="w-2/3 bg-slate-950 p-2 rounded-lg border border-slate-800 flex flex-col justify-between">
-            <div>
-              <div class="flex justify-between items-center gap-1">
+          <div id="player-status-panel" onclick="openCharacterStatusDetail(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCharacterStatusDetail(event)}" aria-label="角色狀態，左右滑動查看成長，點擊開啟詳情"
+               class="w-2/3 relative bg-slate-950 p-2 rounded-lg border border-slate-800 cursor-pointer select-none" style="touch-action:pan-y">
+            <div id="player-status-original-page" class="h-full flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between items-center gap-1">
                 <div id="player-name" class="font-black text-sm text-white tracking-wide truncate">豬勾亮</div>
                 <button id="btn-quick-skill" onclick="triggerPlayerSkillButton(event)" class="px-2 py-0.5 bg-purple-700 hover:bg-purple-600 active:scale-95 text-white font-black rounded text-[10px] shadow transition">
                   ✨ 主動技
@@ -517,6 +519,27 @@
                 </div>
               </div>
             </div>
+            </div><!-- 原有角色資訊第 1 頁結束 -->
+            <div id="player-status-growth-page" class="hidden h-full min-h-[96px] flex flex-col justify-center gap-2.5 pb-1" aria-label="角色等級與戰鬥熟練度">
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-1">
+                  <span id="status-level-label" class="text-sm font-black text-white">Lv.1</span>
+                  <span id="status-level-exp" class="text-[10px] text-slate-400 font-mono">EXP 0/4</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden"><div id="status-level-bar" class="bg-blue-500 h-full rounded-full bar-transition" style="width:0%"></div></div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-1">
+                  <span id="status-mastery-label" class="text-xs font-black text-white">⚔ 戰鬥熟練 F</span>
+                  <span id="status-mastery-exp" class="text-[10px] text-slate-400 font-mono">0/4</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden"><div id="status-mastery-bar" class="bg-amber-500 h-full rounded-full bar-transition" style="width:0%"></div></div>
+              </div>
+            </div>
+            <div class="absolute bottom-[-5px] left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/95 border border-slate-800 shadow" aria-label="角色狀態切頁">
+              <button type="button" onclick="event.stopPropagation();setCharacterStatusPage(0)" class="character-status-page-dot w-1.5 h-1.5 rounded-full bg-amber-400" aria-label="顯示基本狀態" aria-current="page"></button>
+              <button type="button" onclick="event.stopPropagation();setCharacterStatusPage(1)" class="character-status-page-dot w-1.5 h-1.5 rounded-full bg-slate-500" aria-label="顯示等級熟練度" aria-current="false"></button>
+            </div>
           </div>
 
           <div id="equip-six-grid" class="w-1/3 bg-slate-950 p-1 rounded-lg border border-slate-800 grid grid-cols-2 grid-rows-3 gap-1"></div>
@@ -538,6 +561,50 @@
           </button>
         </div>
       </footer>
+
+      <!-- V19.17：點擊任一頁角色狀態，開啟單頁完整詳情（沒有分頁）。 -->
+      <div id="character-status-detail-modal" class="hidden absolute inset-0 z-[65] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center px-3 py-4" onclick="closeCharacterStatusDetail()" role="dialog" aria-modal="true" aria-label="角色狀態詳情">
+        <div class="w-full max-w-[360px] max-h-[92%] overflow-y-auto overscroll-contain custom-scrollbar bg-slate-900 text-white border-2 border-amber-600/70 rounded-2xl shadow-2xl p-3.5 space-y-3" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-base font-black text-amber-300">👤 角色狀態</h3>
+            <button type="button" onclick="closeCharacterStatusDetail()" class="text-slate-200 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold">✕ 關閉</button>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <span id="detail-character-name" class="text-sm font-black">豬勾亮</span>
+            <span id="detail-character-skill" class="max-w-[55%] truncate text-[10px] font-black bg-purple-800 text-white rounded px-2 py-1">✨ 歌廳秀</span>
+          </div>
+          <section class="rounded-xl bg-slate-800/70 p-3 space-y-2" aria-label="基本能力">
+            <h4 class="text-xs font-black text-amber-300">基本能力</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-slate-950 rounded-lg p-2"><div class="text-[10px] text-rose-300">生命 HP</div><div id="detail-hp" class="text-sm font-black text-white">118 / 118</div></div>
+              <div class="bg-slate-950 rounded-lg p-2"><div class="text-[10px] text-sky-300">體力 SP</div><div id="detail-sp" class="text-sm font-black text-white">135 / 135</div></div>
+              <div class="bg-slate-950 rounded-lg p-2"><div class="text-[10px] text-slate-400">攻擊</div><div id="detail-attack" class="text-sm font-black">13</div></div>
+              <div class="bg-slate-950 rounded-lg p-2"><div class="text-[10px] text-slate-400">防禦</div><div id="detail-defense" class="text-sm font-black">11</div></div>
+            </div>
+          </section>
+          <section class="rounded-xl bg-slate-800/70 p-3 space-y-2.5" aria-label="角色等級">
+            <div class="flex items-center justify-between"><h4 class="text-xs font-black text-amber-300">角色等級</h4><span id="detail-level" class="text-lg font-black">Lv.1</span></div>
+            <div class="flex justify-between gap-2 text-[11px]"><span class="text-slate-300">升級經驗</span><span id="detail-level-progress" class="font-mono">0 / 4 EXP</span></div>
+            <div class="bg-slate-700 h-2.5 rounded-full overflow-hidden"><div id="detail-level-bar" class="bg-blue-500 h-full rounded-full bar-transition" style="width:0%"></div></div>
+            <div class="border-t border-slate-700 pt-2 space-y-2">
+              <div class="text-[11px] font-black">目前等級累積加成</div>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                <div class="flex justify-between"><span class="text-slate-300">最大生命</span><span id="detail-bonus-hp" class="text-emerald-400 font-black">+0</span></div>
+                <div class="flex justify-between"><span class="text-slate-300">最大體力</span><span id="detail-bonus-sp" class="text-emerald-400 font-black">+0</span></div>
+                <div class="flex justify-between"><span class="text-slate-300">攻擊</span><span id="detail-bonus-atk" class="text-emerald-400 font-black">+0</span></div>
+                <div class="flex justify-between"><span class="text-slate-300">防禦</span><span id="detail-bonus-def" class="text-emerald-400 font-black">+0</span></div>
+              </div>
+              <div class="text-[10px] leading-relaxed text-slate-400">只計算角色升級，不包含裝備、技能與其他狀態加成。</div>
+            </div>
+          </section>
+          <section class="rounded-xl bg-slate-800/70 p-3 space-y-2.5" aria-label="戰鬥熟練度">
+            <div class="flex items-center justify-between"><h4 class="text-xs font-black text-amber-300">戰鬥熟練度</h4><span id="detail-mastery-rank" class="text-lg font-black">F 級</span></div>
+            <div class="flex justify-between gap-2 text-[11px]"><span class="text-slate-300">熟練進度</span><span id="detail-mastery-progress" class="font-mono">0 / 4 EXP</span></div>
+            <div class="bg-slate-700 h-2.5 rounded-full overflow-hidden"><div id="detail-mastery-bar" class="bg-amber-500 h-full rounded-full bar-transition" style="width:0%"></div></div>
+            <div class="flex justify-between gap-2 text-xs"><span class="text-slate-300">目前傷害加成</span><span id="detail-mastery-bonus" class="text-amber-300 font-black">+0%</span></div>
+          </section>
+        </div>
+      </div>
 
       <!-- 全物資圖鑑彈窗 -->
       <div id="craft-book-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-sm z-50 flex flex-col justify-between p-4 pt-6 pb-5">
@@ -699,7 +766,8 @@
       <div id="gameover-modal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center">
         <div id="gameover-icon" class="text-5xl mb-3 font-black text-amber-400">WIN</div>
         <h2 id="gameover-title" class="text-2xl font-black text-white mb-2">大吉大利！</h2>
-        <p id="gameover-desc" class="text-sm text-slate-300 mb-6"></p>
+        <p id="gameover-desc" class="text-sm text-slate-300 mb-3"></p>
+        <div id="gameover-growth-summary" class="text-xs text-sky-200 border border-slate-700 rounded-xl bg-slate-900/80 px-3 py-2 mb-4 font-bold"></div>
         <button onclick="location.reload()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-base shadow-lg">
           回到大廳
         </button>
@@ -735,9 +803,11 @@
   <script src="characters.js?v=60"></script>
   <script src="game_config.js?v=60"></script>
   
+  <script src="growth.js?v=117"></script>
   <script src="lobby.js?v=67"></script>
-  <script src="ai.js?v=79"></script>
-  <script src="combat.js?v=101"></script>
-  <script src="main.js?v=105"></script>
+  <script src="ai.js?v=117"></script>
+  <script src="combat.js?v=117"></script>
+  <script src="main.js?v=117"></script>
+  <script src="growth_ui.js?v=117"></script>
 </body>
 </html>

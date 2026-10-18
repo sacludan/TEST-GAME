@@ -1039,6 +1039,7 @@ function aiResolveUnitDefeat(victim, killer) {
   }
   victim.hp = 0;
   victim.alive = false;
+  grantEliminationGrowth(killer, victim);
   aiStopRest(victim);
   victim.aiSearchingUntilSec = null;
   if (state.inCombat && state.ai === victim && typeof finishCombatTurn === "function") finishCombatTurn();
@@ -1070,6 +1071,7 @@ function aiUseCombatSkill(attacker, defender) {
     ["zhugouliang", "yazhoutongshen", "jiangwanan", "chenaguan"].includes(attacker.id);
   if (!wanted || Math.random() > (aiIsHard() ? 0.90 : 0.46)) return false;
 
+  const enemyHpBeforeSkill = defender.hp;
   attacker.sp -= cost;
   if (attacker.id !== "wangshijian") attacker.skillCdRemain = skill.cd || 25;
   const hpMissing = 1 - hpRatio;
@@ -1116,6 +1118,7 @@ function aiUseCombatSkill(attacker, defender) {
     default:
       damage = aiSkillDamage(attacker, defender, 1.25);
   }
+  if (defender.hp < enemyHpBeforeSkill) grantCombatHitGrowth(attacker, defender, true);
   attacker.lastAIAction = `施放${skill.name}${damage ? `（${damage}傷害）` : ""}`;
   return true;
 }
@@ -1127,6 +1130,7 @@ function simulateAIVsAICombat(attacker, defender) {
   if (!usedSkill) {
     const crit = Math.random() < 0.25;
     const hit = resolveCombatHit(attacker, defender, calculateCombatDamage(attacker, defender, { crit }));
+    if (hit.damage > 0) grantCombatHitGrowth(attacker, defender, false);
     attacker.lastAIAction = hit.dodged ? `${defender.name}閃避了攻擊` : `攻擊${defender.name}`;
   }
   // 反傷可能先殺死攻擊者，兩方均檢查免死；不允許一次遭遇免費連擊。
@@ -1157,6 +1161,7 @@ function aiAttackPlayerOnSearch(ai) {
   if (!skillUsed) {
     critical = Math.random() < 0.25;
     basicHit = resolveCombatHit(ai, player, calculateCombatDamage(ai, player, { crit: critical }));
+    if (basicHit.damage > 0) grantCombatHitGrowth(ai, player, false);
     ai.lastAIAction = basicHit.dodged ? `${player.name}閃避了攻擊` : `攻擊${player.name}`;
   }
 
@@ -1241,7 +1246,9 @@ function runAIBrain() {
               if (duel === state.player) aiAttackPlayerOnSearch(ai);
               else simulateAIVsAICombat(ai, duel);
             }
-          } else if (!lootOneItemForAI(ai)) {
+          } else if (lootOneItemForAI(ai)) {
+            grantSearchGrowth(ai);
+          } else {
             ai.aiUnproductiveSearches = (ai.aiUnproductiveSearches || 0) + 1;
             if (ai.aiSeekingHealing) ai.aiRecoveryMisses = (ai.aiRecoveryMisses || 0) + 1;
           }

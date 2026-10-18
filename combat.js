@@ -17,7 +17,9 @@ function calculateCombatDamage(attacker, defender, options = {}) {
   const variance = options.variance === undefined ? Math.floor(Math.random() * 5) : options.variance;
   const base = Math.max(6, Math.floor(attack * 100 / (100 + defense * (skill ? 0.96 : 1.6)) + variance));
   const multiplier = skill ? (options.multiplier ?? 1) : (options.crit ? 1.6 : 1);
-  return Math.max(6, Math.round(base * multiplier));
+  // 戰鬥熟練度只增加最終攻擊傷害，不更動基礎攻擊與裝備素質。
+  const masteryMultiplier = 1 + (typeof getGrowthMastery === 'function' ? getGrowthMastery(attacker).bonusPercent : 0) / 100;
+  return Math.max(6, Math.round(base * multiplier * masteryMultiplier));
 }
 
 function estimateAverageCombatDamage(attacker, defender) {
@@ -251,6 +253,7 @@ function executeCombatAction(action) {
 
     const dealt = applyDamageToTarget(p, ai, rawDmg, isCrit, "普通攻擊");
     if (dealt > 0) {
+      grantCombatHitGrowth(p, ai, false);
       if (isCrit) {
         addLog(`🔥 【爆擊重創！】你搶先出手痛擊 ${ai.name}，造成 <span class="text-amber-300 font-black">${dealt}</span> 點傷害！`, "text-amber-400 font-bold");
       } else {
@@ -270,6 +273,7 @@ function executeCombatAction(action) {
     }
 
     const baseDmg = calculateCombatDamage(p, ai, { skill: true });
+    const targetHpBeforeSkill = ai.hp;
 
     switch (p.id) {
       case "zhugouliang": {
@@ -344,6 +348,8 @@ function executeCombatAction(action) {
         break;
       }
     }
+    // 多段攻擊一整次施法只給一次熟練收益；非傷害技能不刷戰鬥 EXP。
+    if (ai.hp < targetHpBeforeSkill) grantCombatHitGrowth(p, ai, true);
   }
 
   // 傷害反彈可能已經讓玩家陣亡，避免同一回合繼續結算。
@@ -384,6 +390,7 @@ function handleUnitDefeat(victim, killer) {
 
   victim.hp = 0;
   victim.alive = false;
+  grantEliminationGrowth(killer, victim);
 
   if (victim === state.player) {
     state.inCombat = false;

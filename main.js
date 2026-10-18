@@ -221,6 +221,11 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     maxSp: Number(tpl.maxSp ?? tpl.sp) || 100,
     baseAtk: Number(tpl.baseAtk ?? tpl.atk) || 10,
     baseDef: Number(tpl.baseDef ?? tpl.def) || 5,
+    // 升級經驗與戰鬥熟練度是各角色獨立的局內進度，NPC 與玩家完全相同。
+    levelExp: 0,
+    masteryExp: 0,
+    killCount: 0,
+    growthHitCounts: Object.create(null),
     skill: { ...tpl.skill },
     passive: { ...tpl.passive },
     skillCdRemain: 0,
@@ -339,6 +344,8 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   state.trackedItemId = null;
   state.logs = [];
   state.ai = null;
+  if (typeof closeCharacterStatusDetail === 'function') closeCharacterStatusDetail();
+  if (typeof setCharacterStatusPage === 'function') setCharacterStatusPage(0);
 
   // 深拷貝每區物資池作為當局有限消耗池 (drops)，並保留固定不重複種類清單 (initialDrops)
   const fullMaps = (typeof MAPS_DATA !== 'undefined' && Array.isArray(MAPS_DATA.zones)) ? MAPS_DATA.zones : [];
@@ -671,7 +678,7 @@ function triggerSearch() {
 
 // 搜刮先抽出物資並暫時保留，待玩家決定才拾取；忽略則歸還原地物資池。
 // 同樣支援韓國魚等「一次取得多件」技能，逐一顯示，不會偷偷塞進背包。
-function lootMultipleItemsForPlayer(count = 1) {
+function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
   const p = state.player;
   if (!p || state.gameOver || !p.alive) return;
   const zoneObj = getSafeCurrentZone(p.zone);
@@ -685,7 +692,7 @@ function lootMultipleItemsForPlayer(count = 1) {
       pool.push(itemId);
       continue;
     }
-    state.pendingLootQueue.push({ itemId, zoneId: zoneObj.id });
+    state.pendingLootQueue.push({ itemId, zoneId: zoneObj.id, growthCredit: growthCredit && found === 0 });
     found++;
   }
   if (!found) {
@@ -693,6 +700,7 @@ function lootMultipleItemsForPlayer(count = 1) {
   } else {
     renderLootChoice();
   }
+  return found;
 }
 
 // V19.13: 立法院首批 12 種圖片測試。僅對確實存在的圖片輸出 <img>，其他道具維持文字版面。
@@ -850,6 +858,8 @@ function resolveLootChoice(action = 'ignore') {
     const homeZone = getSafeZones().find(z => z.id === current.zoneId);
     if (homeZone && Array.isArray(homeZone.drops)) homeZone.drops.push(current.itemId);
   }
+  // 必須真的拾取／裝備才算有效搜刮。忽略回池的物資不能無限刷 EXP。
+  if (current.growthCredit && item && (action === 'take' || action === 'equip')) grantSearchGrowth(player);
   renderLootChoice();
   updateUI();
 }
@@ -883,7 +893,7 @@ function executeSearchFinish() {
     }
   }
 
-  lootMultipleItemsForPlayer(1);
+  lootMultipleItemsForPlayer(1, true);
   updateUI();
 }
 
@@ -1356,6 +1366,7 @@ function craftItem(entity, recipe, isPlayer = true) {
     entity.bag.push(resultId);
   }
 
+  grantCraftGrowth(entity, resultItem);
   if (isPlayer) {
     addLog(`🔨 合成成功！獲得【${resultItem.name}】！`, "text-amber-300 font-black");
     if (state.trackedItemId === resultId) state.trackedItemId = null;
@@ -2193,6 +2204,10 @@ function triggerGameOver(isWin, reasonText) {
   }
   if (titleEl) titleEl.textContent = isWin ? "大吉大利，稱霸台灣！" : "勝敗乃兵家常事！";
   if (descEl) descEl.textContent = reasonText || "";
+  const growthSummary = document.getElementById('gameover-growth-summary');
+  if (growthSummary && state.player) {
+    growthSummary.textContent = `最終 Lv.${getGrowthLevel(state.player)} ｜ 戰鬥熟練 ${getGrowthMastery(state.player).rank} ｜ 擊殺 ${state.player.killCount || 0} 人`;
+  }
   if (modal) modal.classList.remove("hidden");
 }
 
@@ -2344,6 +2359,9 @@ function updateUI() {
   if (spBar) spBar.style.width = `${Math.max(0, Math.min(100, (p.sp / p.maxSp) * 100))}%`;
   const spText = document.getElementById("sp-text");
   if (spText) spText.textContent = `${p.sp}/${p.maxSp}`;
+
+  // 第二頁及角色詳情隨時更新，但不重建第一頁 DOM，也不碰裝備欄。
+  if (typeof renderCharacterGrowthStatus === 'function') renderCharacterGrowthStatus(p);
 
   // 4. 渲染 6 格裝備與目標追蹤器
   // 拖曳途中勿重建來源格子，避免每秒 gameTick 將手指綁定的元素移除。
