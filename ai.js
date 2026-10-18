@@ -586,6 +586,10 @@ function aiScorePickup(ai, item, id, plan) {
   }
 
   if (item.type === "food") {
+    // 受傷撤離後，補血道具的價值暫時高於一般裝備素材，確保滿背包也會考慮換掉低價值物品。
+    if (ai.aiSeekingHealing && ai.hp < ai.maxHp * 0.75 && Number(item.hp) > 0) {
+      return 11000 + Math.min(ai.maxHp - ai.hp, Number(item.hp)) * 5;
+    }
     const hpRatio = ai.hp / Math.max(1, ai.maxHp);
     const spRatio = ai.sp / Math.max(1, ai.maxSp);
     const healthNeed = Math.max(0, (ai.maxHp - ai.hp) * (hpRatio < 0.55 ? 1.2 : 0.12));
@@ -650,6 +654,10 @@ function lootOneItemForAI(ai) {
   const useful = !!(plan?.missingItems || []).find(id => aiResolveItemId(id) === canonicalId);
   ai.aiUnproductiveSearches = useful ? 0 : (ai.aiUnproductiveSearches || 0) + 1;
   ai.lastAIAction = `搜刮${item.name}`;
+  if (ai.aiSeekingHealing) {
+    const usefulHeal = item.type === "food" && Number(item.hp) > 0;
+    ai.aiRecoveryMisses = usefulHeal ? 0 : (ai.aiRecoveryMisses || 0) + 1;
+  }
   aiEnsureBestEquipment(ai);
   // 合成另外佔用一次 AI 行動 CD，不再撿一次就連續合成好幾次。
   return true;
@@ -842,6 +850,128 @@ function moveAIToSafeZone(ai, targetZone = null) {
     if (typeof checkHanguoyuRadar === "function") checkHanguoyuRadar(ai, nextZone.id);
     return true;
   }
+  return false;
+}
+
+/**
+ * AI 遭遇戰：遭遇機率和出手決策分離。
+ * 只要沒有實際執行補血／換區，就必須攻擊，不允許「想避戰卻站著不動」。
+ */
+function aiUseHPFood(ai) {
+  if (!ai || ai.hp >= ai.maxHp) return false;
+  const missing = ai.maxHp - ai.hp;
+  const multiplier = ai.id === "yazhoutongshen" ? 1.2 : 1;
+  let bestIndex = -1;
+  let bestValue = -Infinity;
+  (ai.bag || []).forEach((id, index) => {
+    const item = getSafeItem(aiResolveItemId(id));
+    const hp = Math.round((Number(item?.hp) || 0) * multiplier);
+    if (item?.type !== "food" || hp <= 0) return;
+    // 危急時應該先保命；也盡可能少浪費超出最大 HP 的補量。
+    const value = Math.min(missing, hp) - Math.max(0, hp - missing) * 0.16;
+    if (value > bestValue) { bestValue = value; bestIndex = index; }
+  });
+  if (bestIndex < 0) return false;
+  const id = aiResolveItemId(ai.bag[bestIndex]);
+  const food = getSafeItem(id);
+  ai.hp = Math.min(ai.maxHp, ai.hp + Math.round(Number(food.hp) * multiplier));
+  ai.sp = Math.min(ai.maxSp, ai.sp + (Number(food.sp) || 0));
+  ai.bag.splice(bestIndex, 1);
+  ai.lastAIAction = `使用${food.name}補血`;
+  if (ai.hp >= ai.maxHp * 0.77) ai.aiSeekingHealing = false;
+  return true;
+}
+
+function aiZoneThreatPressure(ai, zoneId) {
+  return aiLivingThreats(ai, zoneId).reduce((total, rival) =>
+    total + 1 + Math.max(0, -aiCombatOdds(ai, rival)) * 0.55, 0);
+}
+
+// 僅參考開局公開產地，不偷看本局掉落池剩幾件。
+function aiPublishedHealingCount(zoneId) {
+  const published = MAPS_DATA.zones.find(zone => zone.id === zoneId);
+  return (published?.drops || []).filter(id => {
+    const item = getSafeItem(aiResolveItemId(id));
+    return item?.type === "food" && Number(item.hp) > 0;
+  }).length;
+}
+
+function aiFindSaferRetreatZone(ai) {
+  if (DEV_CONFIG.mode === "char_test" || ai.sp < AI_MOVE_SP_COST) return null;
+  const currentPressure = aiZoneThreatPressure(ai, ai.zone);
+  if (currentPressure <= 0) return null;
+  const currentZone = getSafeCurrentZone(ai.zone);
+  const candidates = aiGetAvailableZones().filter(zone => zone.id !== ai.zone)
+    .map(zone => ({ zone, pressure: aiZoneThreatPressure(ai, zone.id) }))
+    .filter(({ pressure }) => pressure + 0.05 < currentPressure);
+  if (!candidates.length) return null;
+  const missing = ai.aiPlan?.missingItems || [];
+  candidates.sort((a, b) => {
+    const score = entry => {
+      const published = MAPS_DATA.zones.find(z => z.id === entry.zone.id);
+      const dropIds = published?.drops || [];
+      const planMatches = missing.filter(id => dropIds.includes(aiResolveItemId(id))).length;
+      const healing = aiPublishedHealingCount(entry.zone.id);
+      const distance = Math.hypot((entry.zone.x || 0) - (currentZone.x || 0),
+        (entry.zone.y || 0) - (currentZone.y || 0));
+      return entry.pressure * 25 + distance * 0.07 -
+        (ai.hp < ai.maxHp * 0.75 ? Math.min(healing, 5) * 1.7 : 0) - planMatches * 0.8;
+    };
+    return score(a) - score(b);
+  });
+  return candidates[0].zone;
+}
+
+function aiFindHealingZone(ai) {
+  const currentZone = getSafeCurrentZone(ai.zone);
+  const avoided = ai.aiRecoveryAvoidZones || [];
+  const candidates = aiGetAvailableZones().filter(zone => aiPublishedHealingCount(zone.id) > 0);
+  if (!candidates.length) return null;
+  const preferred = candidates.filter(zone => !avoided.includes(zone.id));
+  const pool = preferred.length ? preferred : candidates;
+  pool.sort((a, b) => {
+    const score = zone => {
+      const published = MAPS_DATA.zones.find(z => z.id === zone.id);
+      const healCount = aiPublishedHealingCount(zone.id);
+      const chance = healCount / Math.max(1, published?.drops?.length || 0);
+      const distance = Math.hypot((zone.x || 0) - (currentZone.x || 0),
+        (zone.y || 0) - (currentZone.y || 0));
+      return aiZoneThreatPressure(ai, zone.id) * 30 + distance * 0.08 - chance * 30 -
+        Math.min(healCount, 6) * 0.7;
+    };
+    return score(a) - score(b);
+  });
+  return pool[0];
+}
+
+function aiShouldAvoidEncounter(ai, enemy) {
+  if (!enemy || !enemy.alive) return false;
+  // 能在這一擊擊倒對手時，應當爭取勝利，而不是無謂逃走。
+  if (aiDamageEstimate(ai, enemy) >= enemy.hp) return false;
+  const odds = aiCombatOdds(ai, enemy);
+  const incoming = aiDamageEstimate(enemy, ai);
+  const imminentDanger = ai.hp <= incoming * (aiIsHard() ? 2.0 : 1.5);
+  const heavilyOutmatched = odds < (aiIsHard() ? -1.5 : -2.0);
+  return imminentDanger || heavilyOutmatched;
+}
+
+function aiTryAvoidSearchEncounter(ai, enemy) {
+  if (!aiShouldAvoidEncounter(ai, enemy)) return false;
+  const hpRatio = ai.hp / Math.max(1, ai.maxHp);
+  // 有真正能補 HP 的補品時，先使用它，而不是留在原地空轉或丟掉一次遭遇。
+  if (hpRatio < 0.74 && aiUseHPFood(ai)) {
+    ai.aiSeekingHealing = ai.hp < ai.maxHp * 0.60;
+    aiCommitAction(ai);
+    return true;
+  }
+  const destination = aiFindSaferRetreatZone(ai);
+  if (destination && moveAIToSafeZone(ai, destination)) {
+    ai.aiSeekingHealing = hpRatio < 0.75;
+    ai.aiRecoveryMisses = 0;
+    aiCommitAction(ai);
+    return true;
+  }
+  // 真的無法補血／移動就死戰；不額外抽「放棄出手」機率。
   return false;
 }
 
@@ -1061,33 +1191,17 @@ function aiAttackPlayerOnSearch(ai) {
 }
 
 function aiThreatenedEnoughToLeave(ai, threats) {
-  if (threats.length === 0) return false;
-  const worst = Math.min(...threats.map(t => aiCombatOdds(ai, t)));
-  const hpRatio = ai.hp / Math.max(1, ai.maxHp);
-  return (hpRatio < 0.48 || worst < (aiIsHard() ? 0.2 : -0.9)) &&
-    (aiIsHard() || Math.random() < 0.66);
+  if (!threats.length) return false;
+  // 先評估是否真的有明顯弱勢／殘血威脅，只有成功換到較安全的區域才算逃跑。
+  // 勢均力敵的 NPC 不會因為看到玩家就亂跑。
+  return threats.some(enemy => aiShouldAvoidEncounter(ai, enemy));
 }
 
 function aiChooseDuelTarget(ai, threats) {
-  // 玩家與 NPC 都是合法遭遇目標；無視後不會獲得任何冷卻或保護。
-  // 玩家正在遭遇視窗中時，避免另開一場突襲。
-  const candidates = threats.filter(t => t !== state.player || !state.inCombat);
-  if (!candidates.length || ai.hp < ai.maxHp * (aiIsHard() ? 0.28 : 0.40)) return null;
-  candidates.sort((a, b) => aiCombatOdds(ai, b) - aiCombatOdds(ai, a));
-  const target = candidates[0];
-  const odds = aiCombatOdds(ai, target);
-  const early = state.timeSec < 60;
-  const endgame = getSafeZones().filter(z => !state.closedZones.includes(z.id)).length <= 3;
-  const playerHurt = target === state.player && target.hp < target.maxHp * 0.7;
-  const roleBonus = ["chenaguan", "chaoge"].includes(ai.id) ? 0.09 : 0;
-  let chance = aiIsHard()
-    ? (odds >= 1.2 ? 0.65 : odds >= 0 ? 0.38 : odds >= -1.5 ? 0.18 : 0.04)
-    : (odds >= 1.2 ? 0.34 : odds >= 0 ? 0.20 : odds >= -1.5 ? 0.07 : 0.02);
-  chance += roleBonus + (playerHurt ? (aiIsHard() ? 0.14 : 0.05) : 0);
-  if (endgame) chance = Math.max(chance, aiIsHard() ? 0.42 : 0.18);
-  if (early) chance *= 0.40;
-  if (odds < -2.5 && !endgame) return null;
-  return Math.random() < Math.min(0.82, chance) ? target : null;
+  // 每次搜刮先抽「是否遭遇」，遭遇後再隨機遇到一個同區對手。
+  // 不偏好玩家、不挑最弱者，也不另外抽攻擊機率。
+  const candidates = threats.filter(enemy => enemy !== state.player || !state.inCombat);
+  return candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
 }
 
 function runAIBrain() {
@@ -1119,11 +1233,17 @@ function runAIBrain() {
           // 只有「完成搜刮」才可能遇敵；玩家也是合法目標，但 NPC 攻擊真人
           // 只單向結算傷害／技能，不彈戰鬥面板，也不附贈玩家反擊。
           const rivals = aiLivingThreats(ai);
-          const duel = rivals.length && Math.random() < 0.45 ? aiChooseDuelTarget(ai, rivals) : null;
-          if (duel === state.player) aiAttackPlayerOnSearch(ai);
-          else if (duel) simulateAIVsAICombat(ai, duel);
-          else if (!lootOneItemForAI(ai)) {
+          const duel = rivals.length && Math.random() < 0.65 ? aiChooseDuelTarget(ai, rivals) : null;
+          if (duel) {
+            const avoided = aiTryAvoidSearchEncounter(ai, duel);
+            if (!avoided) {
+              // 沒有實際補血或成功逃離，就 100% 攻擊／施技。沒有自動反擊。
+              if (duel === state.player) aiAttackPlayerOnSearch(ai);
+              else simulateAIVsAICombat(ai, duel);
+            }
+          } else if (!lootOneItemForAI(ai)) {
             ai.aiUnproductiveSearches = (ai.aiUnproductiveSearches || 0) + 1;
+            if (ai.aiSeekingHealing) ai.aiRecoveryMisses = (ai.aiRecoveryMisses || 0) + 1;
           }
         }
         return;
@@ -1148,17 +1268,46 @@ function runAIBrain() {
       return;
     }
 
-    if (aiThreatenedEnoughToLeave(ai, threats) && moveAIToSafeZone(ai)) {
-      aiCommitAction(ai);
-      return;
+    if (aiThreatenedEnoughToLeave(ai, threats)) {
+      const safeDestination = aiFindSaferRetreatZone(ai);
+      if (safeDestination && moveAIToSafeZone(ai, safeDestination)) {
+        ai.aiSeekingHealing = hpRatio < 0.75;
+        ai.aiRecoveryMisses = 0;
+        aiCommitAction(ai);
+        return;
+      }
+      // 沒有真正能到達的較安全地區，就繼續搜刮／在遭遇時應戰。
     }
     if (aiTryUseNonCombatSkill(ai)) { aiCommitAction(ai); return; }
 
+    // 逃離戰鬥後先找能補 HP 的道具，不會一逃走就繼續死追頂級裝備。
+    if (ai.aiSeekingHealing) {
+      if (hpRatio >= 0.77) {
+        ai.aiSeekingHealing = false;
+        ai.aiRecoveryMisses = 0;
+        ai.aiRecoveryAvoidZones = [];
+      } else if (aiUseHPFood(ai)) {
+        aiCommitAction(ai);
+        return;
+      } else {
+        const enoughTries = (ai.aiRecoveryMisses || 0) >= 5;
+        if (enoughTries) {
+          ai.aiRecoveryAvoidZones = [...new Set([...(ai.aiRecoveryAvoidZones || []), ai.zone])];
+          ai.aiRecoveryMisses = 0;
+        }
+        const destination = aiFindHealingZone(ai);
+        if (destination && destination.id !== ai.zone && moveAIToSafeZone(ai, destination)) {
+          aiCommitAction(ai);
+          return;
+        }
+      }
+    }
+
     const plan = aiGetCurrentTargetPlan(ai);
-    if (tryAutoCraftForAI(ai) > 0) { aiCommitAction(ai); return; }
+    if (!ai.aiSeekingHealing && tryAutoCraftForAI(ai) > 0) { aiCommitAction(ai); return; }
 
     // 已連續多次搜不到目標：憑實際搜刮經驗換一條路，而非透視庫存。
-    if ((ai.aiUnproductiveSearches || 0) >= (aiIsHard() ? 4 : 6)) {
+    if (!ai.aiSeekingHealing && (ai.aiUnproductiveSearches || 0) >= (aiIsHard() ? 4 : 6)) {
       const wanted = new Set((plan?.missingItems || []).map(aiResolveItemId));
       const candidates = aiGetAvailableZones().filter(zone => zone.id !== ai.zone)
         .map(zone => {
@@ -1193,7 +1342,7 @@ function runAIBrain() {
       (localPublished?.drops || []).some(id => aiResolveItemId(id) === aiResolveItemId(needed))));
     const targetZone = aiGetBestNeededDropZone(ai, plan);
     // 困難 AI：有明確需求且本區沒有時，優先移動；簡單 AI 會多撿一些非關鍵物品。
-    const seekTarget = targetZone && targetZone.id !== ai.zone &&
+    const seekTarget = !ai.aiSeekingHealing && targetZone && targetZone.id !== ai.zone &&
       !localHasNeed && (!viableDrop || (aiIsHard() && Math.random() < 0.73));
     if (seekTarget && moveAIToSafeZone(ai, targetZone)) { aiCommitAction(ai); return; }
     if (viableDrop && ai.sp >= AI_SEARCH_SP_COST) {
