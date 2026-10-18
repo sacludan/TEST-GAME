@@ -98,14 +98,14 @@
   {
     "id": "taipeistation",
     "name": "台北車站",
-    "source": "DC503D09-0F9A-4908-83C2-C8CB2691055B(1).jpeg",
+    "source": "image(20261018-184655).png",
     "original_dimensions": [
-      1254,
-      1254
+      662,
+      1055
     ],
     "scene_file": "assets/locations/taipeistation.webp",
-    "mode": "preserved-with-soft-edges",
-    "bytes": 167452
+    "mode": "center-crop-4x5",
+    "bytes": 189782
   },
   {
     "id": "market",

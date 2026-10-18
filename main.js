@@ -327,7 +327,7 @@ const ZONE_SCENE_IMAGES = Object.freeze({
   neihu: 'assets/locations/neihu.webp',
   ximen: 'assets/locations/ximen.webp',
   guanghua: 'assets/locations/guanghua.webp',
-  taipeistation: 'assets/locations/taipeistation.webp',
+  taipeistation: 'assets/locations/taipeistation.webp?v=129',
   market: 'assets/locations/market.webp',
   ly: 'assets/locations/ly.webp',
   jiufen: 'assets/locations/jiufen.webp',
@@ -2462,7 +2462,7 @@ function addLog(msg, colorClass = "text-slate-300") {
   const logEl = document.getElementById("game-log");
   if (logEl) {
     logEl.innerHTML = state.logs.map(l =>
-      `<div class="${l.colorClass} leading-snug"><span class="text-slate-600">[${l.time}]</span> ${l.msg}</div>`
+      `<div class="${l.colorClass} leading-snug"><span class="text-slate-400">[${l.time}]</span> ${l.msg}</div>`
     ).join("");
   }
 }
