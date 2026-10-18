@@ -1,12 +1,11 @@
 /**
- * 《台灣生存戰》V19.17：角色等級 + 統一戰鬥熟練度。
+ * 《台灣生存戰》V19.18：角色等級 + 統一戰鬥熟練度。
  * 玩家與 AI 共用同一套成長公式；等級加成與裝備加成獨立計算。
  */
 const GROWTH_LEVEL_THRESHOLDS = Object.freeze([0, 4, 9, 15, 22, 30, 39, 49, 60, 72, 85, 99, 114, 130, 147, 165, 184, 204]);
 const GROWTH_MASTERY_THRESHOLDS = Object.freeze([0, 4, 12, 24, 40, 62, 90, 126]);
 const GROWTH_MASTERY_RANKS = Object.freeze(['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS']);
 const GROWTH_MASTERY_BONUSES = Object.freeze([0, 3, 6, 10, 15, 21, 28, 35]);
-const GROWTH_TARGET_HIT_CAP = 12; // 同一對手最多 12 次有效命中獎勵，避免互刷熟練度。
 
 function growthTierFromExp(exp, thresholds) {
   const total = Math.max(0, Number(exp) || 0);
@@ -89,11 +88,6 @@ function grantCraftGrowth(entity, item) {
 
 function grantCombatHitGrowth(attacker, defender, usedSkill = false) {
   if (!attacker || !defender || !attacker.alive) return false;
-  if (!attacker.growthHitCounts) attacker.growthHitCounts = Object.create(null);
-  const key = String(defender.id || defender.name || 'unknown');
-  const hits = attacker.growthHitCounts[key] || 0;
-  if (hits >= GROWTH_TARGET_HIT_CAP) return false;
-  attacker.growthHitCounts[key] = hits + 1;
   grantGrowthExperience(attacker, 2);
   grantGrowthMastery(attacker, usedSkill ? 3 : 2);
   if (attacker.isPlayer && typeof addLog === 'function') {

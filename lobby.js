@@ -220,11 +220,27 @@ const LobbyManager = {
   },
 
   // mode 支援: 'normal' (正常對戰), 'sandbox' (原版無縮圈無NPC測試), 'char_test' (立法院角色測試)
-  startGame(mode = 'normal') {
+  async startGame(mode = 'normal') {
     if (mode === true) mode = 'sandbox';
     if (mode === false) mode = 'normal';
 
+    if (this._startingGame) return;
+    this._startingGame = true;
     this.closeAllLobbyModals();
+    const mapLoading = document.getElementById('map-loading-status');
+    if (mapLoading) {
+      mapLoading.textContent = '🗺️ 正在載入地圖並準備互動區域，請稍候…';
+      mapLoading.classList.remove('hidden');
+    }
+    try {
+      if (typeof preloadTacticalMap === 'function') await preloadTacticalMap();
+    } catch (error) {
+      console.error('地圖載入失敗:', error);
+      if (mapLoading) mapLoading.textContent = '地圖載入失敗，請檢查網路後再按一次「開始遊戲」。';
+      this._startingGame = false;
+      return;
+    }
+    if (mapLoading) mapLoading.classList.add('hidden');
 
     const lobbyScreen = document.getElementById("lobby-screen");
     if (lobbyScreen) lobbyScreen.classList.add("hidden");
@@ -237,6 +253,7 @@ const LobbyManager = {
     } else {
       console.error("找不到 initGame 函式！");
     }
+    this._startingGame = false;
   }
 };
 

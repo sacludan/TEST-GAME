@@ -314,6 +314,40 @@ function getTotalDef(entity) {
   return Math.max(0, total);
 }
 
+// V19.20 地圖預載：從首頁開始就載入和解碼；保留同一個 Image 實例，
+// 進入遊戲時直接掛載到地圖 DOM，避免第一次點移動時重新解碼/建立圖片。
+const TACTICAL_MAP_URL = 'taipei_map_clean_v12.jpg';
+let tacticalMapPreloadedImage = null;
+let tacticalMapPreloadPromise = null;
+let lastTacticalMapSignature = null;
+function preloadTacticalMap() {
+  if (tacticalMapPreloadPromise) return tacticalMapPreloadPromise;
+  tacticalMapPreloadPromise = new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.fetchPriority = 'high';
+    image.onload = async () => {
+      try {
+        if (typeof image.decode === 'function') await image.decode();
+        tacticalMapPreloadedImage = image;
+        resolve(true);
+      } catch (err) {
+        // 極少數 Safari decode() 失敗但圖片已完成載入時仍允許顯示。
+        if (image.naturalWidth > 0) {
+          tacticalMapPreloadedImage = image;
+          resolve(true);
+        } else reject(err);
+      }
+    };
+    image.onerror = () => reject(new Error('地圖圖片載入失敗'));
+    image.src = TACTICAL_MAP_URL;
+  }).catch(err => {
+    tacticalMapPreloadPromise = null;  // 連線失敗可重試
+    throw err;
+  });
+  return tacticalMapPreloadPromise;
+}
+
 // ==========================================
 // 4. 遊戲初始化 (initGame)
 // ==========================================
@@ -404,6 +438,14 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
     addLog(`🔥 台灣生存戰開始！你選擇了【${state.player.name}】，${DEV_CONFIG.aiDifficulty === "hard" ? "🔥 困難" : "🌱 簡單"}難度，全島共 ${state.ais.length + 1} 人參戰！`, "text-amber-300 font-bold");
   }
 
+  // 開局預先建好整張地圖和 22 區可點選圖層，首次打開只需顯示。
+  const mapModal = document.getElementById('map-modal');
+  if (mapModal) {
+    mapModal.classList.add('map-modal-closed');
+    mapModal.setAttribute('aria-hidden', 'true');
+  }
+  lastTacticalMapSignature = null;
+  renderTacticalMap();
   updateUI();
   mainTimer = setInterval(gameTick, 500);
 }
@@ -660,7 +702,7 @@ function triggerSearch() {
   if (progressBar && typeof progressBar.animate === 'function') {
     barAnimation = progressBar.animate(
       [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
-      { duration: totalSearchMs, easing: 'linear', fill: 'forwards' }
+      { duration: totalSearchMs, easing: 'linear', fill: 'forwards', composite: 'replace' }
     );
   } else if (progressBar) {
     progressBar.style.transition = 'none';
@@ -736,7 +778,46 @@ const NEW_30_ITEM_ART = [
   'condom', 'quicklime', 'bandage', 'polydar', 'cooking_wine', 'whiskey',
   'pork', 'garlic', 'rice', 'tofu', 'egg', 'soy_sauce'
 ];
-const AVAILABLE_ITEM_ART = new Set([...ORIGINAL_12_ITEM_ART, ...NEW_30_ITEM_ART]);
+// V19.20: 本批額外30種，與已完成42種的 ID 完全不重複。
+const LATEST_30_ITEM_ART = [
+  'election_ballot', 'membership_form', 'academic_paper', 'advanced_book', 'land_deed', 'nano_wafer',
+  'dirty_bracelet', 'wallpaper_stock', 'fake_gold_chain', 'guard_medal', 'pretty_bracelet', 'limit_stock',
+  'peace_amulet', 'gold_medal', 'party_card', 'grandma_bracelet', 'default_notice', 'blessed_amulet',
+  'senior_party_card', 'tsmc_stock_cert', 'mazu_amulet', 'sun_jacket', 'robe', 'light_raincoat',
+  'dunga', 'down_vest', 'taoist_robe', 'clean_vest', 'normal_uniform', 'reflective_vest'
+];
+// V19.21: 再追加 30 張新圖，全部對應到先前還沒做圖的道具，避免重複生產。
+const EXTRA_30_ITEM_ART = [
+  'iron_plate', 'dash_cam', 'mod_exhaust', 'explosive_bomb', 'box_cutter', 'rusty_cleaver',
+  'laxative', 'survival_pack', 'energy_drink', 'bitamin_wine', 'fresh_milk', 'expired_milk',
+  'convenience_umbrella', 'worker_helmet', 'market_rainboots', 'wind_goggles', 'full_helmet', 'sticker_helmet',
+  'legislative_bento', 'pork_bento', 'stinky_tofu', 'braised_egg', 'taiwan_value', 'milk_tea',
+  'century_ash', 'pilgrim_hat', 'temple_cap', 'victory_headband', 'scholar_hat', 'ultimate_party_card'
+];
+// V19.22: 再追加 30 張新圖，全部接到目前仍缺圖且本批視覺明確對應的道具。
+const LATEST_EXTRA_30_ITEM_ART = [
+  'black_tea', 'betel_nut', 'grilled_sausage', 'sticky_rice', 'kaoliang', 'sausage_in_sausage',
+  'love_pointer', 'wooden_stick', 'spiked_stool', 'mod_megaphone', 'wolf_bat', 'aluminum_bat',
+  'puncture_vest', 'legislative_vest', 'ck_uniform', 'tsmc_vest', 'purple_down', 'phd_robe',
+  'pot_shield', 'protest_shield', 'engineer_wrist', 'sleeve_covers', 'riot_shield', 'nano_arm',
+  'melon_helmet', 'reading_glasses', 'white_slippers', 'sports_shorts', 'cloth_gloves', 'iron_pot'
+];
+// V19.23: 再追加 30 張新圖，延續不重複原則，對應本批新生成素材。
+const NEWEST_30_ITEM_ART = [
+  'thick_love_pointer', 'opening_machete', 'umbrella_sword', 'iron_stool', 'village_megaphone', 'discipline_cane',
+  'shark_sword', 'overlord_stool', 'ly_thunder_megaphone', 'grandma_cane', 'taichung_bat', 'mythic_stool',
+  'purple_cult_robe', 'thick_iron_armor', 'yellow_robe', 'tsmc_suit', 'dirty_towel', 'sun_hat',
+  'bamboo_hat', 'wind_helmet', 'steel_helmet', 'phd_hat', 'eight_generals_helm', 'mazu_helmet',
+  'grandpa_boxers', 'rain_boots', 'straw_sandals', 'nonslip_slippers', 'torn_jeans', 'scald_pants'
+];
+// V19.24.1: 已補完最後 23 張圖片，將其加入圖片識別與漸進預載清單。
+const FINAL_23_ITEM_ART = [
+  'royal_whiskey', 'double_betel_nut', 'kavalan', 'stinky_hotpot', 'milktea_laxative', 'grandma_jacket',
+  'old_sneakers', 'enhanced_slippers', 'election_jeans', 'skinny_pants', 'puncture_boots', 'clean_slippers',
+  'studded_slippers', 'village_pants', 'exhaust_boots', 'grandma_slippers', 'rubber_gloves', 'insulated_gloves',
+  'wind_gloves', 'slip_wristband', 'tattoo_sleeve', 'engineer_armor', 'ice_sleeves',
+];
+const AVAILABLE_ITEM_ART = new Set([...ORIGINAL_12_ITEM_ART, ...NEW_30_ITEM_ART, ...LATEST_30_ITEM_ART, ...EXTRA_30_ITEM_ART, ...LATEST_EXTRA_30_ITEM_ART, ...NEWEST_30_ITEM_ART, ...FINAL_23_ITEM_ART]);
 
 function getItemArtUrl(itemId) {
   const normalizedId = ItemRegistry.ALIAS[itemId] || itemId;
@@ -764,12 +845,14 @@ function preloadItemArt(itemId) {
 }
 function preloadKnownItemArt() {
   ORIGINAL_12_ITEM_ART.forEach(preloadItemArt);
+  // 地圖優先完成載入/解碼，再分批暖 60 張圖，避免同時爭搶手機解碼資源。
+  const remainingItemIds = [...NEW_30_ITEM_ART, ...LATEST_30_ITEM_ART, ...EXTRA_30_ITEM_ART, ...LATEST_EXTRA_30_ITEM_ART, ...NEWEST_30_ITEM_ART, ...FINAL_23_ITEM_ART];
   let cursor = 0;
   function warmNewItemsBatch() {
-    for (let i = 0; i < 4 && cursor < NEW_30_ITEM_ART.length; i++, cursor++) {
-      preloadItemArt(NEW_30_ITEM_ART[cursor]);
+    for (let i = 0; i < 4 && cursor < remainingItemIds.length; i++, cursor++) {
+      preloadItemArt(remainingItemIds[cursor]);
     }
-    if (cursor < NEW_30_ITEM_ART.length) window.setTimeout(warmNewItemsBatch, 180);
+    if (cursor < remainingItemIds.length) window.setTimeout(warmNewItemsBatch, 200);
   }
   window.setTimeout(warmNewItemsBatch, 350);
 }
@@ -779,17 +862,21 @@ function preloadZoneItemArt(zoneId) {
   const ids = new Set(zone.drops);
   for (const id of ids) preloadItemArt(id);
 }
+// 先預載、解碼地圖，再開始批次載入道具；頁面進大廳時即啟動。
+function beginBackgroundItemPreload() {
+  preloadTacticalMap().then(preloadKnownItemArt, preloadKnownItemArt);
+}
 if (document.readyState === 'loading') {
-  window.addEventListener('DOMContentLoaded', preloadKnownItemArt, { once: true });
+  window.addEventListener('DOMContentLoaded', beginBackgroundItemPreload, { once: true });
 } else {
-  preloadKnownItemArt();
+  beginBackgroundItemPreload();
 }
 
 function itemArtMarkup(itemId, classNames = 'w-9 h-9 shrink-0 object-contain pointer-events-none') {
   const url = getItemArtUrl(itemId);
   if (!url) return '';
   const name = getSafeItem(itemId)?.name || '道具';
-  return `<img src="${url}" alt="${name}" loading="lazy" decoding="async" draggable="false" class="${classNames}" onerror="this.style.display='none'">`;
+  return `<img src="${url}" alt="${name}" loading="eager" decoding="async" draggable="false" class="${classNames}" onerror="this.style.display='none'">`;
 }
 
 function renderLootChoice() {
@@ -1988,16 +2075,19 @@ function renderTargetTracker() {
 
 function openMapModal() {
   if (state.gameOver || state.inCombat || state.isSearching) return;
-  const modal = document.getElementById("map-modal");
-  if (modal) {
-    modal.classList.remove("hidden");
-    renderTacticalMap();
-  }
+  const modal = document.getElementById('map-modal');
+  if (!modal) return;
+  // 僅在位置、禁區、追蹤物資變化時更新 SVG；不重建已解碼的地圖圖片。
+  renderTacticalMap();
+  modal.classList.remove('map-modal-closed');
+  modal.setAttribute('aria-hidden', 'false');
 }
 
 function closeMapModal() {
-  const modal = document.getElementById("map-modal");
-  if (modal) modal.classList.add("hidden");
+  const modal = document.getElementById('map-modal');
+  if (!modal) return;
+  modal.classList.add('map-modal-closed');
+  modal.setAttribute('aria-hidden', 'true');
 }
 
 function moveZone(targetZoneId) {
@@ -2047,6 +2137,12 @@ function renderTacticalMap() {
   const p = state.player;
   const zones = getSafeZones();
   const missingMats = getMissingTrackedMaterials();
+  // svg 標記只和下列狀態有關；每次點地圖不再重組大量 SVG。
+  const signature = JSON.stringify([
+    p.zone, state.closedZones, state.pendingCloseZones, state.trackedItemId,
+    missingMats, zones.map(z => z.id)
+  ]);
+  if (signature === lastTacticalMapSignature && document.getElementById('tactical-map-svg')) return;
   const mapW = 1600;
   const mapH = 2622;
   const baseW = 941;
@@ -2196,14 +2292,30 @@ function renderTacticalMap() {
     }
   });
 
-  container.innerHTML = `
-    <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
-      <div class="relative h-full" style="aspect-ratio: 1600 / 2622; height: 100%; max-width: 100%;">
-        <img src="taipei_map_clean_v12.jpg" alt="台北生存島地圖" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none">
-        <svg viewBox="0 0 ${mapW} ${mapH}" class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">${svgParts.join('')}</svg>
+  // 圖片與 HTML 外框整局只建立一次，更新動態標記時只替換 SVG 內部。
+  let mapSvg = document.getElementById('tactical-map-svg');
+  if (!mapSvg || !container.contains(mapSvg)) {
+    container.innerHTML = `
+      <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+        <div class="relative h-full" style="aspect-ratio: 1600 / 2622; height: 100%; max-width: 100%;">
+          <img id="tactical-map-image" src="${TACTICAL_MAP_URL}" alt="台北生存島地圖" fetchpriority="high" loading="eager" decoding="async" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none">
+          <svg id="tactical-map-svg" viewBox="0 0 ${mapW} ${mapH}" class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none"></svg>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+    const visibleImage = document.getElementById('tactical-map-image');
+    if (visibleImage && tacticalMapPreloadedImage) {
+      // 同一個已解碼圖片節點，避免首次開地圖再觸發圖片解碼。
+      tacticalMapPreloadedImage.id = 'tactical-map-image';
+      tacticalMapPreloadedImage.className = visibleImage.className;
+      tacticalMapPreloadedImage.alt = visibleImage.alt;
+      tacticalMapPreloadedImage.draggable = false;
+      visibleImage.replaceWith(tacticalMapPreloadedImage);
+    }
+    mapSvg = document.getElementById('tactical-map-svg');
+  }
+  if (mapSvg) mapSvg.innerHTML = svgParts.join('');
+  lastTacticalMapSignature = signature;
 }
 
 // ==========================================
