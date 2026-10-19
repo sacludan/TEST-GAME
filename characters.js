@@ -135,7 +135,7 @@ const GAME_CHARACTERS = {
       cd: 30,
       costSp: 25,
       combatOnly: true,
-      desc: "連續攻擊 3 次，但接下來 15 秒內攻擊力減半"
+      desc: "連續攻擊 3 次，每槍造成原本技能傷害的 75%，接下來 15 秒內攻擊力減半"
     },
     passive: {
       name: "幫我開直播",
@@ -247,11 +247,11 @@ const GAME_CHARACTERS = {
       cd: 25,
       costSp: 20,
       combatOnly: false,
-      desc: "立即恢復 20 點生命值，並在接下來 10 秒內防禦力 +5"
+      desc: "立即恢復所在區域所有存活角色（包含自己及敵人）各 30 點生命值，不再提供防禦加成"
     },
     passive: {
       name: "問A答B",
-      desc: "自動閃躲下一次受到的攻擊（觸發後冷卻 30 秒）"
+      desc: "自動閃躲下一次受到的攻擊（觸發後冷卻 35 秒）"
     }
   }
 };

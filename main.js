@@ -314,7 +314,6 @@ function getTotalDef(entity) {
     });
   }
 
-  if (entity.milkDefBuffRemain > 0) total += 5;
   if (entity.guanDefBuffRemain > 0) total += 6;
 
   if (isChaoGeAuraAffecting(entity)) {
@@ -683,7 +682,7 @@ function tickEntityTimers(entity) {
     }
   }
 
-  // 蔣晚安：觸發必閃後 30 秒才重新準備（玩家／NPC 共用）
+  // 蔣晚安：觸發必閃後 35 秒才重新準備（玩家／NPC 共用）
   if (entity.id === "jiangwanan" && balanceHasPassive(entity) && !entity.dodgeReady) {
     if (entity.dodgeCdRemain > 0) {
       entity.dodgeCdRemain--;
@@ -2656,9 +2655,6 @@ function updateUI() {
     }
     if (p.reflectRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷 ${p.reflectRemain}s／反彈剩 ${p.reflectHitsRemaining || 0} 次</span>`);
-    }
-    if (p.milkDefBuffRemain > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🥛 防禦+5 (${p.milkDefBuffRemain}s)</span>`);
     }
     if (p.weakenedRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-600 text-rose-300 rounded text-[9px] font-bold">💤 虛弱 ${p.weakenedRemain}s</span>`);

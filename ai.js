@@ -1042,9 +1042,8 @@ function aiTryUseNonCombatSkill(ai) {
     if (missingHp < 12 && !nearbyThreat) return false;
     ai.sp -= cost;
     ai.skillCdRemain = skill.cd || 25;
-    ai.hp = Math.min(ai.maxHp, ai.hp + 20);
-    ai.milkDefBuffRemain = 10;
-    ai.lastAIAction = `發動${skill.name}`;
+    const healed = healCharactersInZone(ai, 30);
+    ai.lastAIAction = `發動${skill.name}（區域恢復${healed.totalHealed}HP）`;
     return true;
   }
 
@@ -1129,7 +1128,7 @@ function aiUseCombatSkill(attacker, defender) {
       break;
     case "chenaguan":
       for (let i = 0; i < 3 && defender.hp > 0 && attacker.hp > 0; i++) {
-        damage += aiSkillDamage(attacker, defender, 1);
+        damage += aiSkillDamage(attacker, defender, 0.75);
       }
       attacker.weakenedRemain = 15;
       break;
@@ -1144,8 +1143,7 @@ function aiUseCombatSkill(attacker, defender) {
       attacker.stealthRemain = 12;
       break;
     case "jiangwanan":
-      attacker.hp = Math.min(attacker.maxHp, attacker.hp + 20);
-      attacker.milkDefBuffRemain = 10;
+      healCharactersInZone(attacker, 30);
       break;
     case "hanguoyu": {
       for (let i = 0; i < 3; i++) lootOneItemForAI(attacker);

@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=63', 'game_config.js',
-  'growth.js', 'ai.js?v=121', 'combat.js?v=120', 'main.js?v=134'
+  'recipes.js', 'maps.js', 'characters.js?v=64', 'game_config.js',
+  'growth.js', 'ai.js?v=122', 'combat.js?v=121', 'main.js?v=135'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -73,6 +73,26 @@ resolveCombatHit = function (attacker, defender, rawDamage) {
   }
   return r;
 };
+// 區域補血觀測：施法者的回血沿用下方技能觀測，其他受惠者補血也列入各自數據。
+const originalZoneHeal = healCharactersInZone;
+healCharactersInZone = function (caster, amount) {
+  const before = new Map();
+  for (const entity of (state.ais || [])) {
+    if (entity && entity !== caster && entity.alive && entity.hp > 0 && entity.zone === caster.zone) {
+      before.set(entity, entity.hp);
+    }
+  }
+  if (state.player && state.player !== caster && state.player.alive && state.player.hp > 0 && state.player.zone === caster.zone) {
+    before.set(state.player, state.player.hp);
+  }
+  const result = originalZoneHeal(caster, amount);
+  for (const [entity, hpBefore] of before) {
+    const m = track(entity);
+    if (m) m.healing += Math.max(0, entity.hp - hpBefore);
+  }
+  return result;
+};
+
 const originalFood = aiUseFood;
 aiUseFood = function (entity, force = false) {
   const before = entity.hp;

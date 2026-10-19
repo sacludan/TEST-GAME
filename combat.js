@@ -128,6 +128,29 @@ function canUsePlayerSkill(p) {
   return true;
 }
 
+// 蔣萬安【生生喝鮮乳】：所在區域全體回血，包含自己、其他 NPC 與敵對玩家。
+// 只治療目前仍存活且 HP > 0 的角色，不復活淘汰者，也不超過最大生命。
+// 玩家、NPC（非戰鬥／戰鬥）與平衡模擬共用這條路徑。
+function healCharactersInZone(caster, amount = 30) {
+  const result = { targets: 0, healedCharacters: 0, totalHealed: 0, casterHealed: 0 };
+  if (!caster || !caster.zone || amount <= 0) return result;
+  const entities = [caster, state.player, ...(Array.isArray(state.ais) ? state.ais : [])];
+  const seen = new Set();
+  for (const entity of entities) {
+    if (!entity || seen.has(entity)) continue;
+    seen.add(entity);
+    if (!entity.alive || entity.hp <= 0 || entity.zone !== caster.zone) continue;
+    result.targets++;
+    const before = entity.hp;
+    entity.hp = Math.min(entity.maxHp, entity.hp + amount);
+    const gained = Math.max(0, entity.hp - before);
+    if (gained > 0) result.healedCharacters++;
+    result.totalHealed += gained;
+    if (entity === caster) result.casterHealed = gained;
+  }
+  return result;
+}
+
 // 非戰鬥狀態下施放主動技（如：韓國魚、王世間、蔣晚安、亞洲桶神）
 function castNonCombatActiveSkill() {
   const p = state.player;
@@ -150,9 +173,8 @@ function castNonCombatActiveSkill() {
     p.stealthRemain = 12;
     addLog(`👻 <span class="text-sky-300 font-black">【Over my dead body】</span> 12 秒內不會被別人搜到也搜不到人，且【從從容容】讓搜刮時間縮短為 0.5 秒！`, "text-sky-300 font-bold");
   } else if (p.id === "jiangwanan") {
-    p.hp = Math.min(p.maxHp, p.hp + 20);
-    p.milkDefBuffRemain = 10;
-    addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 立即恢復 20 HP，並獲得 10 秒防禦力 +5！`, "text-emerald-300 font-bold");
+    const healed = healCharactersInZone(p, 30);
+    addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 所在區域全體恢復最多 30 HP（包含敵人），${healed.healedCharacters} 人實際恢復共 ${healed.totalHealed} HP！`, "text-emerald-300 font-bold");
   } else if (p.id === "yazhoutongshen") {
     p.reflectRemain = 8;
     p.reflectHitsRemaining = 2;
@@ -172,7 +194,7 @@ function resolveCombatHit(attacker, defender, rawDamage) {
   if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
   if (defender.id === "jiangwanan" && balanceHasPassive(defender) && defender.dodgeReady) {
     defender.dodgeReady = false;
-    defender.dodgeCdRemain = 30;
+    defender.dodgeCdRemain = 35;
     result.dodged = true;
     return result;
   }
@@ -325,11 +347,11 @@ function executeCombatAction(action) {
         let totalDealt = 0;
         for (let i = 1; i <= 3; i++) {
           if (ai.hp > 0) {
-            totalDealt += applyDamageToTarget(p, ai, baseDmg, true, `三槍(第${i}發)`);
+            totalDealt += applyDamageToTarget(p, ai, baseDmg * 0.75, true, `三槍(第${i}發)`);
           }
         }
         p.weakenedRemain = 15;
-        addLog(`🔫 <span class="text-purple-300 font-black">【三槍】</span> 連續攻擊 3 次共造成 <span class="text-amber-300 font-black">${totalDealt}</span> 點傷害！（接下來 15 秒攻擊力減半）`, "text-purple-300 font-bold");
+        addLog(`🔫 <span class="text-purple-300 font-black">【三槍】</span> 每槍 75% 傷害，3 槍共造成 <span class="text-amber-300 font-black">${totalDealt}</span> 點傷害！（接下來 15 秒攻擊力減半）`, "text-purple-300 font-bold");
         break;
       }
       case "yazhoutongshen": {
@@ -349,9 +371,8 @@ function executeCombatAction(action) {
         break;
       }
       case "jiangwanan": {
-        p.hp = Math.min(p.maxHp, p.hp + 20);
-        p.milkDefBuffRemain = 10;
-        addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 恢復 20 點生命值，且 10 秒內防禦力 +5！`, "text-emerald-300 font-bold");
+        const healed = healCharactersInZone(p, 30);
+        addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 區域全體（含敵人）恢復最多 30 HP，${healed.healedCharacters} 人實際恢復共 ${healed.totalHealed} HP！`, "text-emerald-300 font-bold");
         break;
       }
     }
