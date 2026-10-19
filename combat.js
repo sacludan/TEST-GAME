@@ -173,7 +173,7 @@ function castNonCombatActiveSkill() {
 
   if (p.id === "zhugouliang") {
     startZoneSongShow(p);
-    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 45 秒！其他角色搜刮 +1 秒；豬哥亮在本區造成傷害 +10%、受到戰鬥傷害 -10%，離開或效果結束即失效。`, 'text-purple-300 font-bold');
+    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 45 秒！其他角色搜刮 +1 秒；豬哥亮在本區造成傷害 +20%、受到戰鬥傷害 -10%，離開或效果結束即失效。`, 'text-purple-300 font-bold');
   } else if (p.id === "hanguoyu") {
     addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 韓國魚發動技能，一次連摸 3 件物資！`, "text-amber-300 font-bold");
     lootMultipleItemsForPlayer(3, 'all');
@@ -211,11 +211,11 @@ function resolveCombatHit(attacker, defender, rawDamage) {
     }
     // 判定失敗不重置就緒狀態，也不開始冷卻。
   }
-  // 歌廳秀：僅施放者豬哥亮身處其開秀區域、效果有效時，戰鬥傷害 +10%／受傷 -10%。
+  // 歌廳秀：僅施放者豬哥亮身處其開秀區域、效果有效時，戰鬥傷害 +20%／受傷 -10%。
   const songAttackBuff = isSongShowCasterBuffActive(attacker);
   const songDefenseBuff = isSongShowCasterBuffActive(defender);
   const originalHit = Math.max(6, Math.round(rawDamage));
-  const rawHit = songAttackBuff ? Math.max(1, Math.round(originalHit * 1.1)) : originalHit;
+  const rawHit = songAttackBuff ? Math.max(1, Math.round(originalHit * 1.2)) : originalHit;
   // 亞洲桶神：8 秒內承受攻擊傷害 -50%；僅前兩次有效命中反彈原始傷害。
   const shielding = defender.reflectRemain > 0;
   let damage = shielding ? Math.max(1, Math.round(rawHit * 0.5)) : rawHit;

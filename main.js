@@ -2704,7 +2704,7 @@ function updateUI() {
     }
     const showLeft = zoneSongShowRemaining(p.zone);
     if (showLeft > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-fuchsia-950 border border-fuchsia-400 text-fuchsia-200 rounded text-[9px] font-bold">🎤 歌廳秀 ${Math.ceil(showLeft)}s${isSongShowCasterBuffActive(p) ? '・傷害+10%／受傷-10%' : (zoneSongShowSearchPenalty(p) ? '・搜刮+1秒' : '')}</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-fuchsia-950 border border-fuchsia-400 text-fuchsia-200 rounded text-[9px] font-bold">🎤 歌廳秀 ${Math.ceil(showLeft)}s${isSongShowCasterBuffActive(p) ? '・傷害+20%／受傷-10%' : (zoneSongShowSearchPenalty(p) ? '・搜刮+1秒' : '')}</span>`);
     }
     if (p.weakenedRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-600 text-rose-300 rounded text-[9px] font-bold">💤 虛弱 ${p.weakenedRemain}s</span>`);
