@@ -714,14 +714,14 @@ function tickEntityTimers(entity) {
     }
   }
 
-  // 蔣晚安：觸發必閃後 35 秒才重新準備（玩家／NPC 共用）
+  // 蔣晚安：閃避成功冷卻 35 秒、失敗冷卻 5 秒（玩家／NPC 共用）
   if (entity.id === "jiangwanan" && balanceHasPassive(entity) && !entity.dodgeReady) {
     if (entity.dodgeCdRemain > 0) {
       entity.dodgeCdRemain--;
       if (entity.dodgeCdRemain === 0) {
         entity.dodgeReady = true;
         if (entity.isPlayer) {
-          addLog("🛡️ 被動【問A答B】已就緒！受到攻擊有 70% 機率閃避；失敗不進入冷卻。", "text-sky-300 font-bold");
+          addLog("🛡️ 被動【問A答B】已就緒！受到攻擊有 70% 機率閃避；失敗冷卻 5 秒。", "text-sky-300 font-bold");
         }
       }
     }

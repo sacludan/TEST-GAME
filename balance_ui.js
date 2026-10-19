@@ -228,7 +228,7 @@
       for(let i=0;i<workerCount;i++) {
         const startIndex=Math.floor(i*n/workerCount);
         const endIndex=Math.floor((i+1)*n/workerCount);
-        const worker=new Worker('balance_worker.js?v=9'); // 未修改模擬引擎與每場種子算法
+        const worker=new Worker('balance_worker.js?v=10'); // 未修改模擬引擎與每場種子算法
         jobs.push({worker,startIndex,count:endIndex-startIndex,completed:0,done:false,report:null});
       }
     } catch(e) {
