@@ -5,7 +5,7 @@ self.document = { readyState: 'loading', addEventListener() {}, getElementById()
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
   'recipes.js', 'maps.js', 'characters.js?v=68', 'game_config.js',
-  'growth.js?v=119', 'ai.js?v=126', 'combat.js?v=125', 'main.js?v=1936'
+  'growth.js?v=119', 'ai.js?v=127', 'combat.js?v=125', 'main.js?v=1936'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -275,7 +275,7 @@ let started=false;
 onmessage = async function (event) {
   const input = event.data || {};
   if (input.type === 'cancel') { cancelled = true; return; }
-  if (input.type !== 'start' || started) return;
+  if ((input.type !== 'start' && input.type !== 'batch') || started) return;
   started=true; cancelled=false;
   try {
     const n = Math.min(10000, Math.max(1, Math.floor(Number(input.count)||100)));
@@ -310,7 +310,7 @@ onmessage = async function (event) {
       }
     }
     const report=aggregate(matches);
-    postMessage({type:'done', report, settings:{seed,difficulty,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
+    postMessage({type:input.type==='batch'?'batchDone':'done', batchId:input.batchId, report, settings:{seed,difficulty,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
   } catch (error) {
     postMessage({type:'error',message:String(error?.stack||error)});
   } finally {

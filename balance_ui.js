@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const start = $('start'), stop = $('stop'), count = $('count');
   const progressArea = $('progress-area'), progressFill = $('progress-fill'), progressBar = $('progress-bar');
-  let jobs = [], runStartMs = 0, running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
+  let jobs = [], batchReports = [], totalCompleted = 0, nextMatchIndex = 0, batchSize = 9, runStartMs = 0, running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
   const heroes = (typeof GAME_CHARACTERS !== 'undefined') ? GAME_CHARACTERS : {};
   function setupSkills() {
     $('skill-list').innerHTML = Object.values(heroes).map(h => `
@@ -177,31 +177,50 @@
     const n=Math.max(1,Math.floor(Number(count.value)||9));
     const known=navigator.hardwareConcurrency;
     const workerCount=chosenCores(n);
-    $('core-info').textContent=`${known?`偵測到 ${known} 個邏輯執行緒`:'無法偵測核心數，採保守配置'} · 這次使用 ${workerCount} 個 Worker。${workerCount>8?'高 Worker 數可能因記憶體競爭反而變慢，請用實測比較。':'自動模式最多使用 8 個；可手動測試 10～16 個。'}同種子與場次設定下，各 Worker 的場次編號不變。`;
+    $('core-info').textContent=`${known?`偵測到 ${known} 個邏輯執行緒`:'無法偵測核心數，採保守配置'} · 這次使用 ${workerCount} 個 Worker。${workerCount>8?'高 Worker 數可能因記憶體競爭反而變慢，請用實測比較。':'自動模式最多使用 8 個；可手動測試 10～16 個。'}動態分批派工，閒置 Worker 會領取下一批；同種子與場次設定下，各 Worker 的場次編號不變。`;
   }
   function cleanupJobs() {
     jobs.forEach(j=>{try{j.worker.terminate();}catch(e){}});
     jobs=[];running=false;abortRequested=false;busy(false);showCores();
   }
   function updateOverallProgress(total) {
-    const done=jobs.reduce((sum,j)=>sum+j.completed,0);
+    // 已完成的批次 + 各 Worker 當前批次的進度，不重複計算。
+    const done=totalCompleted+jobs.reduce((sum,j)=>sum+j.progress,0);
     progress(done,total);
     $('message').textContent=abortRequested
-      ? `正在停止：目前完成 ${integer(done)} 場，會保留已完成的數據。`
-      : `正在使用 ${jobs.length} 個 Worker 同時模擬：已完成 ${integer(done)} 場。`;
+      ? `正在停止：已完成 ${integer(totalCompleted)} 場，等待目前的小批次結束。`
+      : `正在使用 ${jobs.length} 個 Worker 動態領取工作：已完成約 ${integer(done)} 場。`;
   }
   function completeIfAllDone() {
     if(!running || jobs.some(j=>!j.done)) return;
     const elapsedSeconds=Math.round(((performance.now()-runStartMs)/1000)*100)/100;
-    const reports=jobs.filter(j=>j.report).map(j=>j.report);
-    report=combineReports(reports);
+    report=combineReports(batchReports);
     progress(report.completed,currentSettings.requested);
-    currentSettings={...currentSettings,completed:report.completed,cancelled:abortRequested,elapsedSeconds};
+    currentSettings={...currentSettings,completed:report.completed,cancelled:abortRequested,elapsedSeconds,
+      scheduling:'dynamic',batchSize};
     const wasCancelled=abortRequested;
     cleanupJobs();
-    message(wasCancelled?`已停止：保留已完成的 ${report.completed} 場數據，實際耗時 ${elapsedSeconds.toFixed(2)} 秒。`:`已完成 ${report.completed} 場！實際耗時 ${elapsedSeconds.toFixed(2)} 秒（${(report.completed/Math.max(elapsedSeconds,0.01)).toFixed(2)} 場／秒）。可匯出 CSV／JSON。`);
+    message(wasCancelled?`已停止：保留已完成的 ${report.completed} 場數據，耗時 ${elapsedSeconds.toFixed(2)} 秒。`:
+      `已完成 ${report.completed} 場！耗時 ${elapsedSeconds.toFixed(2)} 秒（${(report.completed/Math.max(elapsedSeconds,0.01)).toFixed(2)} 場／秒）。可匯出 CSV／JSON。`);
     render();
     $('csv').disabled=!report.completed;$('json').disabled=!report.completed;$('save-baseline').disabled=!report.completed;
+  }
+  function assignNextBatch(job) {
+    if(abortRequested || nextMatchIndex>=currentSettings.requested) {
+      job.done=true;job.progress=0;job.batch=null;
+      job.worker.terminate();
+      updateOverallProgress(currentSettings.requested);
+      completeIfAllDone();
+      return;
+    }
+    const startIndex=nextMatchIndex;
+    const size=Math.min(batchSize,currentSettings.requested-startIndex);
+    nextMatchIndex+=size;
+    job.progress=0;
+    job.batch={startIndex,count:size};
+    job.worker.postMessage({type:'batch',batchId:startIndex,count:size,startIndex,
+      seed:currentSettings.seed,difficulty:currentSettings.difficulty,
+      skillSwitches:currentSettings.skillSwitches});
   }
   function launch() {
     if(running) return;
@@ -212,6 +231,10 @@
     if(typeof Worker==='undefined') return message('這個瀏覽器不支援 Web Worker，無法執行模擬。',true);
     const skillSwitches=getSwitches();
     const workerCount=chosenCores(n);
+    // 動態配給約 6 輪工作，每批最多 36 局；少量測試也能充分使用 Worker。
+    // 每場仍以原本全域編號產生種子、並以 9 場區塊輪換順位。
+    batchSize=Math.max(1,Math.min(36,Math.ceil(n/(workerCount*6))));
+    batchReports=[];totalCompleted=0;nextMatchIndex=0;
     report=null;currentSettings={seed:rawSeed,requested:n,difficulty:$('difficulty').value,
       skillSwitches,parallelMode:$('cores').value,workersUsed:workerCount};
     $('csv').disabled=true;$('json').disabled=true;$('save-baseline').disabled=true;
@@ -221,15 +244,12 @@
     ['s-games','s-duration','s-draws'].forEach(id=>$(id).textContent='—');
     $('insight').textContent='模擬進行中，資料完成後才會顯示；不會用預估勝率冒充實際結果。';
     running=true;abortRequested=false;runStartMs=performance.now();busy(true);progress(0,n);
-    message(`準備使用 ${workerCount} 個 Worker 模擬 ${n} 場。`);
-    // 預先配置所有工作，避免第一個 Worker 太快完成時提早結算。
+    message(`準備使用 ${workerCount} 個 Worker 動態模擬 ${n} 場，每批最多 ${batchSize} 場。`);
     try {
       jobs=[];
       for(let i=0;i<workerCount;i++) {
-        const startIndex=Math.floor(i*n/workerCount);
-        const endIndex=Math.floor((i+1)*n/workerCount);
-        const worker=new Worker('balance_worker.js?v=10'); // 未修改模擬引擎與每場種子算法
-        jobs.push({worker,startIndex,count:endIndex-startIndex,completed:0,done:false,report:null});
+        const worker=new Worker('balance_worker.js?v=11');
+        jobs.push({worker,progress:0,done:false,batch:null});
       }
     } catch(e) {
       cleanupJobs();message('無法啟動 Worker：請透過網站或本機 HTTP 伺服器開啟 balance.html。'+e.message,true);return;
@@ -239,18 +259,22 @@
       w.onmessage=({data})=>{
         if(!running || job.done) return;
         if(data.type==='progress') {
-          job.completed=Math.min(job.count,data.completed);
+          job.progress=Math.min(job.batch?.count || 0, data.completed);
           updateOverallProgress(n);
         } else if(data.type==='error') {
           const errorMsg=data.message;
           cleanupJobs();message('模擬發生錯誤：'+errorMsg,true);
-        } else if(data.type==='done') {
-          job.report=data.report;
-          job.completed=data.report.completed;
-          job.done=true;
-          w.terminate();
-          updateOverallProgress(n);
-          completeIfAllDone();
+        } else if(data.type==='batchDone') {
+          // 回收實際完成的局數，再派下一批；沒有重複、跳號或提前合併。
+          if(!job.batch || data.batchId!==job.batch.startIndex) {
+            cleanupJobs();message('Worker 回傳批次編號不一致，已停止以避免錯誤統計。',true);return;
+          }
+          batchReports.push(data.report);
+          totalCompleted+=data.report.completed;
+          job.progress=0;
+          job.batch=null;
+          assignNextBatch(job);
+          if(running) updateOverallProgress(n);
         }
       };
       w.onerror=e=>{
@@ -258,9 +282,8 @@
         const detail=e.message||'請確認測試器 JS 檔案已正確上傳且使用 HTTP/HTTPS。';
         cleanupJobs();message('Worker 無法載入：'+detail,true);
       };
-      w.postMessage({type:'start',count:job.count,startIndex:job.startIndex,
-        seed:rawSeed,difficulty:currentSettings.difficulty,skillSwitches});
     }
+    jobs.forEach(assignNextBatch);
   }
   function csvCell(x) { return '"'+String(x??'').replace(/"/g,'""')+'"'; }
   function download(filename,body,type) {
@@ -295,12 +318,11 @@
   });
   $('clear-baseline').addEventListener('click',()=>{baseline=null;updateBaselineInfo();makeRows();});
   start.addEventListener('click',launch);
-  // 各 Worker 在當前一場結算後依序停止；保留所有已完成場次。
+  // 小批次完成時停止，不會丟掉已結算但尚未合併的對局。
   stop.addEventListener('click',()=>{
     if(!running)return;
     abortRequested=true;
-    jobs.filter(j=>!j.done).forEach(j=>j.worker.postMessage({type:'cancel'}));
-    stop.disabled=true;message('已向全部 Worker 發出停止要求，正在保存已完成場次…');
+    stop.disabled=true;message('正在停止：目前的小批次完成後保留所有結果，不再派發新工作…');
   });
   $('csv').addEventListener('click',exportCsv);
   $('json').addEventListener('click',()=>{if(report)download('balance_'+currentSettings.seed+'_'+report.completed+'.json',JSON.stringify({settings:currentSettings,report,limitations:'九名 NPC 自動模擬；非真人玩家勝率'},null,2),'application/json');});

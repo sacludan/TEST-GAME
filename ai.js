@@ -100,6 +100,39 @@ function aiResolveItemId(itemId) {
 }
 
 const AI_RECIPE_INDEX = new Map();
+// 世界「公告掉落表」在遊戲開始後不會變；只建立一次索引。
+// 保留各區原始 drops 順序與重複物品數量，不讀取已被搜刮的即時掉落池。
+const AI_PUBLISHED_DROPS = new Map();
+function aiEnsurePublishedDrops() {
+  // ai.js 在 main.js（ItemRegistry 初始化）之前載入，必須延後建立索引。
+  if (AI_PUBLISHED_DROPS.size) return;
+  for (const zone of MAPS_DATA.zones) {
+    const counts = Object.create(null);
+    for (const rawId of zone.drops || []) {
+      const id = aiResolveItemId(rawId);
+      if (id) counts[id] = (counts[id] || 0) + 1;
+    }
+    AI_PUBLISHED_DROPS.set(zone.id, counts);
+  }
+}
+// 各 AI 共用相同的公開物資總量；封區／待封區的清單變更時才重算。
+let aiWorldCatalogKey = null;
+let aiWorldCatalogCounts = null;
+function aiPublishedWorldCounts(zones) {
+  aiEnsurePublishedDrops();
+  const key = zones.map(zone => zone.id).join('|');
+  if (aiWorldCatalogKey === key && aiWorldCatalogCounts) return aiWorldCatalogCounts;
+  const counts = Object.create(null);
+  for (const zone of zones) {
+    const drops = AI_PUBLISHED_DROPS.get(zone.id);
+    if (!drops) continue;
+    for (const id of Object.keys(drops)) counts[id] = (counts[id] || 0) + drops[id];
+  }
+  aiWorldCatalogKey = key;
+  aiWorldCatalogCounts = counts;
+  return counts;
+}
+
 function aiGetRecipesForResult(itemId) {
   const recipes = getSafeRecipes();
   if (AI_RECIPE_INDEX.size === 0) {
@@ -123,7 +156,6 @@ function aiGetAvailableZones() {
 
 function aiCreatePlannerContext(ai) {
   const ownedCounts = Object.create(null);
-  const worldCounts = Object.create(null);
   const zones = aiGetAvailableZones();
 
   const addOwned = id => {
@@ -136,16 +168,9 @@ function aiCreatePlannerContext(ai) {
     if (item && item.id) addOwned(item.id);
   });
 
-  zones.forEach(zone => {
-    // 只看開局固定掉落表，不讀取本局已被玩家／NPC 搜走多少物品。
-    const publishedZone = MAPS_DATA.zones.find(z => z.id === zone.id);
-    (publishedZone?.drops || []).forEach(id => {
-      const resolved = aiResolveItemId(id);
-      if (resolved) worldCounts[resolved] = (worldCounts[resolved] || 0) + 1;
-    });
-  });
-
-  return { ai, ownedCounts, worldCounts, zones };
+  // 世界物資統計只取決於尚可前往的區域，各 NPC 可安全共用唯讀索引。
+  // 後續 aiExpandRequiredItem 會先複製數量表，絕不直接扣除共用內容。
+  return { ai, ownedCounts, worldCounts: aiPublishedWorldCounts(zones), zones };
 }
 
 function aiCloneCounts(counts) {
@@ -153,14 +178,14 @@ function aiCloneCounts(counts) {
 }
 
 function aiGetNearestItemDistance(ai, itemId, zones = null) {
+  aiEnsurePublishedDrops();
   const resolved = aiResolveItemId(itemId);
   const allZones = zones || aiGetAvailableZones();
   const currentZone = getSafeCurrentZone(ai.zone);
   let best = Infinity;
 
   allZones.forEach(zone => {
-    const catalog = MAPS_DATA.zones.find(z => z.id === zone.id);
-    if (!(catalog?.drops || []).some(id => aiResolveItemId(id) === resolved)) return;
+    if (!(AI_PUBLISHED_DROPS.get(zone.id)?.[resolved] > 0)) return;
     const dx = (Number(zone.x) || 0) - (Number(currentZone.x) || 0);
     const dy = (Number(zone.y) || 0) - (Number(currentZone.y) || 0);
     best = Math.min(best, Math.sqrt(dx * dx + dy * dy));
@@ -297,10 +322,7 @@ function aiCountOwned(ai, itemId) {
 function aiGetWorldDropCount(itemId) {
   // 開局公開的掉落配置，不讀取遊戲中各區的實際剩餘量。
   const resolved = aiResolveItemId(itemId);
-  return aiGetAvailableZones().reduce((total, zone) => {
-    const published = MAPS_DATA.zones.find(z => z.id === zone.id);
-    return total + (published?.drops || []).filter(id => aiResolveItemId(id) === resolved).length;
-  }, 0);
+  return aiPublishedWorldCounts(aiGetAvailableZones())[resolved] || 0;
 }
 
 function aiChooseBestTargetPlan(ai, context = null) {
@@ -1142,7 +1164,7 @@ function aiUseCombatSkill(attacker, defender) {
       attacker.weakenedRemain = 15;
       break;
     case "yazhoutongshen":
-      attacker.reflectRemain = 8;
+      attacker.reflectRemain = 12;
       break;
     case "chaoge":
       damage = aiSkillDamage(attacker, defender, 1.5);
