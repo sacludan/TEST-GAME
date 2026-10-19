@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const start = $('start'), stop = $('stop'), count = $('count');
   const progressArea = $('progress-area'), progressFill = $('progress-fill'), progressBar = $('progress-bar');
-  let jobs = [], running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
+  let jobs = [], runStartMs = 0, running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
   const heroes = (typeof GAME_CHARACTERS !== 'undefined') ? GAME_CHARACTERS : {};
   function setupSkills() {
     $('skill-list').innerHTML = Object.values(heroes).map(h => `
@@ -163,7 +163,7 @@
   }
   function recommendedCores(n) {
     const logical=Math.max(1,Number(navigator.hardwareConcurrency)||2);
-    let max=Math.min(6,Math.max(1,Math.floor(logical/2)));
+    let max=Math.min(8,Math.max(1,Math.floor(logical/2)));
     if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'')) max=Math.min(max,2);
     if(Number(navigator.deviceMemory)>0 && navigator.deviceMemory<=4) max=Math.min(max,2);
     // 小樣本不必浪費時間載入多份引擎；每增加一個 Worker 至少 30 場。
@@ -177,7 +177,7 @@
     const n=Math.max(1,Math.floor(Number(count.value)||9));
     const known=navigator.hardwareConcurrency;
     const workerCount=chosenCores(n);
-    $('core-info').textContent=`${known?`偵測到 ${known} 個邏輯執行緒`:'無法偵測核心數，採保守配置'} · 這次使用 ${workerCount} 個 Worker。各 Worker 在獨立執行緒跑完整對局，種子與勝率不會因核心數而改變。`;
+    $('core-info').textContent=`${known?`偵測到 ${known} 個邏輯執行緒`:'無法偵測核心數，採保守配置'} · 這次使用 ${workerCount} 個 Worker。${workerCount>8?'高 Worker 數可能因記憶體競爭反而變慢，請用實測比較。':'自動模式最多使用 8 個；可手動測試 10～16 個。'}同種子與場次設定下，各 Worker 的場次編號不變。`;
   }
   function cleanupJobs() {
     jobs.forEach(j=>{try{j.worker.terminate();}catch(e){}});
@@ -192,13 +192,14 @@
   }
   function completeIfAllDone() {
     if(!running || jobs.some(j=>!j.done)) return;
+    const elapsedSeconds=Math.round(((performance.now()-runStartMs)/1000)*100)/100;
     const reports=jobs.filter(j=>j.report).map(j=>j.report);
     report=combineReports(reports);
     progress(report.completed,currentSettings.requested);
-    currentSettings={...currentSettings,completed:report.completed,cancelled:abortRequested};
+    currentSettings={...currentSettings,completed:report.completed,cancelled:abortRequested,elapsedSeconds};
     const wasCancelled=abortRequested;
     cleanupJobs();
-    message(wasCancelled?`已停止：保留已完成的 ${report.completed} 場數據。`:`已完成 ${report.completed} 場！可查看數據或匯出 CSV／JSON。`);
+    message(wasCancelled?`已停止：保留已完成的 ${report.completed} 場數據，實際耗時 ${elapsedSeconds.toFixed(2)} 秒。`:`已完成 ${report.completed} 場！實際耗時 ${elapsedSeconds.toFixed(2)} 秒（${(report.completed/Math.max(elapsedSeconds,0.01)).toFixed(2)} 場／秒）。可匯出 CSV／JSON。`);
     render();
     $('csv').disabled=!report.completed;$('json').disabled=!report.completed;$('save-baseline').disabled=!report.completed;
   }
@@ -219,7 +220,7 @@
     $('chart-order').innerHTML='<div class="placeholder">模擬中</div>';
     ['s-games','s-duration','s-draws'].forEach(id=>$(id).textContent='—');
     $('insight').textContent='模擬進行中，資料完成後才會顯示；不會用預估勝率冒充實際結果。';
-    running=true;abortRequested=false;busy(true);progress(0,n);
+    running=true;abortRequested=false;runStartMs=performance.now();busy(true);progress(0,n);
     message(`準備使用 ${workerCount} 個 Worker 模擬 ${n} 場。`);
     // 預先配置所有工作，避免第一個 Worker 太快完成時提早結算。
     try {
@@ -227,7 +228,7 @@
       for(let i=0;i<workerCount;i++) {
         const startIndex=Math.floor(i*n/workerCount);
         const endIndex=Math.floor((i+1)*n/workerCount);
-        const worker=new Worker('balance_worker.js?v=9');
+        const worker=new Worker('balance_worker.js?v=9'); // 未修改模擬引擎與每場種子算法
         jobs.push({worker,startIndex,count:endIndex-startIndex,completed:0,done:false,report:null});
       }
     } catch(e) {
@@ -277,7 +278,7 @@
     const pos=report.rankWins.map((r,i)=>['順位 '+(i+1),'',r.games,r.wins,r.games?100*r.wins/r.games:0]);
     const metadata=[['設定','場數',currentSettings.requested,'難度',currentSettings.difficulty,'種子',currentSettings.seed,'Worker數',currentSettings.workersUsed,'模式',currentSettings.parallelMode],
       ['技能開關(JSON)',JSON.stringify(currentSettings.skillSwitches)],
-      ['結果','完成',report.completed,'無冠軍',report.draws]];
+      ['結果','完成',report.completed,'無冠軍',report.draws,'實際耗時秒數',currentSettings.elapsedSeconds]];
     if(baseline) metadata.push(['比較基準場數',baseline.report.completed,'比較基準種子',baseline.settings.seed]);
     const contents=[...metadata,[''],headers,...rows,[''],['執行順位','', '機會次數','勝場','勝率%'],...pos].map(r=>r.map(csvCell).join(',')).join('\r\n');
     download('balance_'+currentSettings.seed+'_'+report.completed+'.csv','\uFEFF'+contents,'text/csv;charset=utf-8');
