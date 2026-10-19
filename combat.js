@@ -194,11 +194,16 @@ function castNonCombatActiveSkill() {
 function resolveCombatHit(attacker, defender, rawDamage) {
   const result = { damage: 0, dodged: false, reflected: 0, heal: 0, guan: false };
   if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
+  // 問A答B：就緒時每次受擊有 70% 機率完全閃避。
+  // 只有「成功閃避」才消耗就緒狀態、開始 35 秒冷卻；
+  // 失敗時正常受到傷害，保留就緒狀態供下一次受擊再次判定。
   if (defender.id === "jiangwanan" && balanceHasPassive(defender) && defender.dodgeReady) {
-    defender.dodgeReady = false;
-    defender.dodgeCdRemain = 35;
-    result.dodged = true;
-    return result;
+    if (Math.random() < 0.70) {
+      defender.dodgeReady = false;
+      defender.dodgeCdRemain = 35;
+      result.dodged = true;
+      return result;
+    }
   }
   // 歌廳秀已改為區域搜刮減速，不再定身或增加受傷傷害。
   const rawHit = Math.max(6, Math.round(rawDamage));

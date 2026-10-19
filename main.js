@@ -721,7 +721,7 @@ function tickEntityTimers(entity) {
       if (entity.dodgeCdRemain === 0) {
         entity.dodgeReady = true;
         if (entity.isPlayer) {
-          addLog("🛡️ 被動【問A答B】已就緒！下一次受到的攻擊必定閃避！", "text-sky-300 font-bold");
+          addLog("🛡️ 被動【問A答B】已就緒！受到攻擊有 70% 機率閃避；失敗不進入冷卻。", "text-sky-300 font-bold");
         }
       }
     }
@@ -2679,7 +2679,7 @@ function updateUI() {
     }
     if (p.id === "jiangwanan") {
       bList.push(p.dodgeReady
-        ? `<span class="px-1.5 py-0.5 bg-sky-950 border border-sky-400 text-sky-300 rounded text-[9px] font-bold">🛡️ 閃避就緒</span>`
+        ? `<span class="px-1.5 py-0.5 bg-sky-950 border border-sky-400 text-sky-300 rounded text-[9px] font-bold">🛡️ 閃避70%就緒</span>`
         : `<span class="px-1.5 py-0.5 bg-slate-900 border border-slate-700 text-slate-400 rounded text-[9px]">閃避(${p.dodgeCdRemain}s)</span>`);
     }
     if (p.stealthRemain > 0) {
