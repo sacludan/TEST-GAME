@@ -265,8 +265,21 @@
 
     <div id="fps-blood-hit-overlay"></div>
 
+    <!-- V19.43 音樂音量面板：不影響遊戲操作，首次須由使用者操作播放 -->
+    <div id="audio-settings-panel" role="group" aria-label="音樂設定" class="hidden absolute top-12 right-3 z-[70] w-[216px] rounded-xl border border-slate-600 bg-slate-950/95 shadow-2xl p-3 space-y-2 text-left" onclick="event.stopPropagation()">
+      <div class="text-xs font-black text-slate-100">🎧 黑暗生存配樂</div>
+      <label for="audio-volume" class="block text-[11px] text-slate-300">背景音樂音量 <span id="audio-volume-label">30%</span></label>
+      <input id="audio-volume" type="range" min="0" max="100" value="30" oninput="GameAudio.setVolume(this.value)" class="w-full accent-indigo-400" aria-label="背景音樂音量">
+      <div class="flex gap-2">
+        <button id="audio-mute-button" type="button" onclick="GameAudio.toggleMute()" class="flex-1 rounded-lg bg-slate-800 hover:bg-slate-700 px-2 py-1.5 text-[11px] font-bold">🔊 音樂開啟</button>
+        <button type="button" onclick="GameAudio.play()" class="rounded-lg bg-indigo-800 hover:bg-indigo-700 px-2 py-1.5 text-[11px] font-bold">▶ 試聽</button>
+      </div>
+      <button type="button" onclick="GameAudio.closePanel()" class="w-full text-center text-[10px] text-slate-400 hover:text-white">關閉設定</button>
+    </div>
+
     <!-- 1. 遊戲主大廳畫面 -->
     <div id="lobby-screen" class="absolute inset-0 bg-slate-950 z-50 flex flex-col p-4 pt-5 pb-4 overflow-hidden">
+      <button id="audio-button-lobby" type="button" onclick="GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="absolute top-3 right-3 z-20 bg-slate-900/90 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold hover:bg-slate-800">🎵</button>
       <div class="flex flex-col flex-1 min-h-0">
         <div class="text-center shrink-0">
           <h1 class="text-2xl font-black text-white tracking-wider">台灣生存戰</h1>
@@ -318,7 +331,7 @@
             </button>
 
             <div class="text-[10px] text-slate-600 text-center pb-1">
-              V19.42
+              V19.43
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900 hover:bg-slate-800 border border-slate-700 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5">
@@ -455,6 +468,8 @@
                 <span id="current-zone-alert-pill" class="hidden text-[10px] font-black px-1.5 py-0.5 rounded animate-pulse"></span>
               </div>
             </div>
+
+            <button id="audio-button-game" type="button" onclick="event.stopPropagation(); GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="flex-shrink-0 px-2 py-1.5 bg-slate-900/90 border border-slate-700 text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-800">🎵</button>
 
             <button id="main-map-btn" onclick="event.stopPropagation(); openMapModal();" class="flex-shrink-0 relative px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 border-2 border-amber-500/80 rounded-xl flex flex-col items-center justify-center shadow-md transition">
               <span class="text-xs font-black text-amber-400">移動</span>
@@ -864,5 +879,6 @@
   <script src="combat.js?v=129"></script>
   <script src="main.js?v=1942"></script>
   <script src="growth_ui.js?v=117"></script>
+  <script src="audio_manager.js?v=1943"></script>
 </body>
 </html>
