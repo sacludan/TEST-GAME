@@ -1,7 +1,8 @@
-/* 台灣生存戰 V19.45 — A 黑暗生存配樂 + 封區警報 (BGM only). */
+/* 台灣生存戰 V19.46 — 背景音樂 + 寫實音效（搜刮 / 命中 / 受傷）+ 禁區警報。 */
 (function () {
   'use strict';
-  const KEY = 'formosa_survival_bgm_v1';
+
+  const KEY = 'formosa_survival_audio_v2';
   let settings = { volume: 30, muted: false };
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -9,19 +10,80 @@
       if (Number.isFinite(+saved.volume)) settings.volume = Math.min(100, Math.max(0, +saved.volume));
       settings.muted = saved.muted === true;
     }
-  } catch (_) { /* Private mode / file:// may disable localStorage. */ }
-  const audio = new Audio('assets/audio/dark_survival_loop.mp3');
-  audio.loop = true;
-  audio.preload = 'none'; // Don't compete with critical scene and character images.
-  audio.volume = settings.volume / 100;
+  } catch (_) { /* file:// or private mode may block localStorage */ }
+
+  const bgm = new Audio('assets/audio/dark_survival_loop.mp3');
+  bgm.loop = true;
+  bgm.preload = 'none';
+  bgm.volume = settings.volume / 100;
+
+  const sfxConfig = {
+    search: { src: 'assets/audio/sfx_search_loot.mp3', gain: 0.55 },
+    hit:    { src: 'assets/audio/sfx_hit_enemy.mp3',   gain: 0.72 },
+    hurt:   { src: 'assets/audio/sfx_player_hurt.mp3', gain: 0.78 }
+  };
+  const sfxSources = Object.create(null);
+  const activeSfx = new Set();
+  let sfxPrimed = false;
+  for (const [name, cfg] of Object.entries(sfxConfig)) {
+    const audio = new Audio(cfg.src);
+    audio.preload = 'auto';
+    sfxSources[name] = audio;
+  }
+
   let started = false;
   let suspendedByVisibility = false;
   let alertContext = null;
   let warningActive = false;
   let lastWarningAt = -Infinity;
 
-  // Create / resume an AudioContext from the same real user gesture that starts BGM.
-  // Safari cannot start Web Audio later from an unattended game timer.
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
+  }
+
+  function calcVolume(multiplier = 1) {
+    return Math.max(0, Math.min(1, (settings.volume / 100) * multiplier));
+  }
+
+  function stopAllSfx() {
+    activeSfx.forEach(clip => {
+      try {
+        clip.pause();
+        clip.currentTime = 0;
+      } catch (_) {}
+    });
+    activeSfx.clear();
+  }
+
+  function primeSfx() {
+    if (sfxPrimed) return;
+    sfxPrimed = true;
+    Object.values(sfxSources).forEach(audio => {
+      try { audio.load(); } catch (_) {}
+    });
+  }
+
+  function playSfx(name) {
+    const source = sfxSources[name];
+    const cfg = sfxConfig[name];
+    if (!source || !cfg || settings.muted || settings.volume <= 0 || document.hidden) return;
+    try {
+      const clip = source.cloneNode(true);
+      clip.preload = 'auto';
+      clip.volume = calcVolume(cfg.gain);
+      activeSfx.add(clip);
+      const cleanup = () => activeSfx.delete(clip);
+      clip.addEventListener('ended', cleanup, { once: true });
+      clip.addEventListener('error', cleanup, { once: true });
+      const promise = clip.play();
+      if (promise && typeof promise.catch === 'function') {
+        promise.catch(() => cleanup());
+      }
+    } catch (err) {
+      console.debug(`音效 ${name} 播放失敗`, err);
+    }
+  }
+
   function unlockAlertAudio() {
     if (settings.muted || settings.volume <= 0) return;
     const Ctor = window.AudioContext || window.webkitAudioContext;
@@ -39,7 +101,6 @@
     if (!alertContext || alertContext.state !== 'running' || settings.muted || settings.volume <= 0 || document.hidden) return;
     try {
       const t = alertContext.currentTime;
-      // Two gentle descending alert tones, 0.35 s total; avoid shrill continuous sirens.
       for (const [offset, freq] of [[0, 660], [0.19, 470]]) {
         const oscillator = alertContext.createOscillator();
         const gain = alertContext.createGain();
@@ -49,7 +110,8 @@
         gain.gain.setValueAtTime(0.0001, t + offset);
         gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + offset + 0.025);
         gain.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.16);
-        oscillator.connect(gain); gain.connect(alertContext.destination);
+        oscillator.connect(gain);
+        gain.connect(alertContext.destination);
         oscillator.start(t + offset);
         oscillator.stop(t + offset + 0.165);
         oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
@@ -57,19 +119,18 @@
     } catch (err) { console.debug('禁區警報音播放失敗', err); }
   }
 
-  function persist() {
-    try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
-  }
   function refresh() {
     const volume = document.getElementById('audio-volume');
     const label = document.getElementById('audio-volume-label');
     const mute = document.getElementById('audio-mute-button');
     if (volume) volume.value = String(settings.volume);
     if (label) label.textContent = settings.volume + '%';
+
     const menuVolume = document.getElementById('audio-volume-menu');
     const menuLabel = document.getElementById('audio-volume-label-menu');
     if (menuVolume) menuVolume.value = String(settings.volume);
     if (menuLabel) menuLabel.textContent = settings.volume + '%';
+
     if (mute) {
       mute.textContent = settings.muted ? '🔇 已靜音' : '🔊 音樂開啟';
       mute.setAttribute('aria-pressed', String(settings.muted));
@@ -79,15 +140,17 @@
       menuMute.textContent = settings.muted ? '🔇 已靜音' : '🔊 音樂開啟';
       menuMute.setAttribute('aria-pressed', String(settings.muted));
     }
-    for (const id of ['audio-button-lobby']) {
-      const btn = document.getElementById(id);
-      if (!btn) continue;
-      btn.textContent = settings.muted || settings.volume === 0 ? '🔇' : '🎵';
-      btn.title = settings.muted ? '音樂已靜音（點擊調整）' : '音樂設定';
+    const lobbyBtn = document.getElementById('audio-button-lobby');
+    if (lobbyBtn) {
+      lobbyBtn.textContent = settings.muted || settings.volume === 0 ? '🔇' : '🎵';
+      lobbyBtn.title = settings.muted ? '音樂已靜音（點擊調整）' : '音樂設定';
     }
   }
+
   const GameAudio = {
     refresh,
+    primeSfx,
+    playSfx,
     syncZoneWarning(isPending, remainSeconds = 120) {
       const active = !!isPending;
       if (!active) {
@@ -107,11 +170,11 @@
     },
     play() {
       started = true;
+      primeSfx();
       unlockAlertAudio();
       if (settings.muted || settings.volume === 0 || document.hidden) return;
-      audio.volume = settings.volume / 100;
-      // iPhone Safari only permits playback after a user gesture.
-      const promise = audio.play();
+      bgm.volume = settings.volume / 100;
+      const promise = bgm.play();
       if (promise && typeof promise.catch === 'function') {
         promise.catch(err => { console.info('音樂等待使用者操作才能播放:', err && err.message); });
       }
@@ -120,16 +183,24 @@
       const parsed = Number(value);
       if (!Number.isFinite(parsed)) return;
       settings.volume = Math.max(0, Math.min(100, Math.round(parsed)));
-      audio.volume = settings.volume / 100;
-      persist(); refresh();
-      if (settings.volume === 0) audio.pause();
-      else if (started && !settings.muted && !document.hidden) this.play();
+      bgm.volume = settings.volume / 100;
+      persist();
+      refresh();
+      if (settings.volume === 0) {
+        bgm.pause();
+        stopAllSfx();
+      } else if (started && !settings.muted && !document.hidden) {
+        this.play();
+      }
     },
     toggleMute() {
       settings.muted = !settings.muted;
-      persist(); refresh();
-      if (settings.muted) audio.pause();
-      else {
+      persist();
+      refresh();
+      if (settings.muted) {
+        bgm.pause();
+        stopAllSfx();
+      } else {
         lastWarningAt = -Infinity;
         this.play();
       }
@@ -141,29 +212,38 @@
     closePanel() {
       document.getElementById('audio-settings-panel')?.classList.add('hidden');
     },
-    // Expose playback state only for testing / debugging.
-    getState() { return { ...settings, started, paused: audio.paused, src: audio.currentSrc }; }
+    getState() {
+      return { ...settings, started, paused: bgm.paused, src: bgm.currentSrc, sfxPrimed };
+    }
   };
+
   window.GameAudio = GameAudio;
-  // Browsers (especially iPhone Safari) generally forbid sound on page load.
-  // Start it synchronously inside the first real click/tap gesture in the lobby.
-  // Capturing lets music begin BEFORE the click triggers an async loading flow.
-  // If the browser initially refuses, the next tap gives another valid gesture.
+
   document.addEventListener('click', function (event) {
     const lobby = document.getElementById('lobby-screen');
     if (!lobby || lobby.classList.contains('hidden')) return;
-    if (!event.isTrusted || settings.muted || settings.volume === 0 || document.hidden) return;
-    if (audio.paused) GameAudio.play();
+    if (!event.isTrusted) return;
+    primeSfx();
+    if (!settings.muted && settings.volume > 0 && !document.hidden && bgm.paused) {
+      GameAudio.play();
+    }
   }, true);
+
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
-      suspendedByVisibility = started && !audio.paused;
-      audio.pause();
+      suspendedByVisibility = started && !bgm.paused;
+      bgm.pause();
+      stopAllSfx();
     } else if (suspendedByVisibility && started && !settings.muted) {
       suspendedByVisibility = false;
       GameAudio.play();
     }
   });
-  window.addEventListener('pagehide', () => audio.pause());
+
+  window.addEventListener('pagehide', () => {
+    bgm.pause();
+    stopAllSfx();
+  });
+
   refresh();
 })();

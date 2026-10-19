@@ -295,7 +295,7 @@
     <div id="lobby-screen" class="absolute inset-0 bg-slate-950 z-50 flex flex-col p-4 pt-5 pb-4 overflow-hidden">
       <button id="audio-button-lobby" type="button" onclick="GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="absolute top-3 right-3 z-20 bg-slate-900/90 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold hover:bg-slate-800">🎵</button>
       <div class="flex flex-col flex-1 min-h-0">
-        <div class="text-center shrink-0">
+        <div class="text-center shrink-0 pt-1">
           <h1 class="text-2xl font-black text-white tracking-wider">台灣生存戰</h1>
           <p class="text-[10px] text-indigo-400 font-mono tracking-widest uppercase">Formosa Survival: Battle Royale</p>
         </div>
@@ -303,34 +303,15 @@
         <div class="flex-1"></div>
 
         <div class="shrink-0 space-y-3 pb-1">
-          <div class="bg-slate-900/75 border border-slate-800 rounded-2xl px-3 py-2.5 space-y-2">
-            <div class="flex items-center justify-between gap-2">
-              <div class="min-w-0">
-                <div class="text-[10px] text-slate-400 font-bold">目前出戰角色</div>
-                <div id="selected-char-summary" class="text-sm font-black text-amber-300 truncate">豬勾亮</div>
-              </div>
-              <div class="text-right">
-                <div class="text-[10px] text-slate-500">正常對戰將加入 8 位電腦</div>
-              </div>
-            </div>
-
-            <div class="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2 space-y-1.5" aria-label="選擇電腦難度">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-black text-slate-100">🤖 電腦難度</span>
-                <span id="ai-difficulty-description" class="text-[10px] text-emerald-300">簡單・適合熟悉遊戲</span>
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <button id="difficulty-easy" type="button" aria-pressed="true" onclick="LobbyManager.selectDifficulty('easy')" class="rounded-lg py-2 text-xs font-black border border-emerald-400 bg-emerald-950 text-emerald-200">🌱 簡單</button>
-                <button id="difficulty-hard" type="button" aria-pressed="false" onclick="LobbyManager.selectDifficulty('hard')" class="rounded-lg py-2 text-xs font-black border border-slate-700 bg-slate-950 text-slate-400">🔥 困難</button>
-              </div>
-            </div>
+          <div class="text-center text-[11px] text-slate-500 px-4 leading-relaxed">
+            選擇角色後開始生存對戰，難度會在進場前再讓你選一次。
           </div>
 
-          <button onclick="LobbyManager.startGame('normal')" class="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 active:scale-95 text-slate-950 font-black rounded-2xl text-lg shadow-lg transition">
+          <button onclick="LobbyManager.openDifficultyModal()" class="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 active:scale-95 text-slate-950 font-black rounded-2xl text-lg shadow-lg transition">
             開始遊戲
           </button>
 
-          <div id="scene-preload-status" role="status" class="text-center text-slate-400 text-[10px] font-bold">🖼️ 場景背景預載準備中…</div>
+          <div id="scene-preload-status" role="status" class="hidden text-center text-slate-400 text-[10px] font-bold">🖼️ 場景背景預載準備中…</div>
           <div id="map-loading-status" role="status" class="hidden text-center rounded-xl border border-amber-500/40 bg-slate-900/90 text-amber-200 px-3 py-2 text-xs font-bold">🗺️ 正在載入地圖、場景背景並準備互動區域，請稍候…</div>
 
           <button onclick="LobbyManager.openCharacterSelectModal()" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 border border-slate-700 text-slate-100 font-black rounded-2xl text-base shadow transition flex items-center justify-center gap-2">
@@ -345,7 +326,7 @@
             </button>
 
             <div class="text-[10px] text-slate-600 text-center pb-1">
-              V19.45
+              V19.46
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900 hover:bg-slate-800 border border-slate-700 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5">
@@ -353,6 +334,26 @@
               <span class="text-[11px] font-black">教學模式</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      <div id="difficulty-select-modal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-[55] flex items-center justify-center p-6">
+        <div class="w-full max-w-[320px] rounded-3xl border border-slate-700 bg-slate-900/95 p-5 shadow-2xl space-y-4 text-left" onclick="event.stopPropagation()">
+          <div class="text-center space-y-1">
+            <div class="text-sm font-black text-white">選擇電腦難度</div>
+            <div class="text-[11px] text-slate-400">開始遊戲前選一個難度，之後會直接進入對戰。</div>
+          </div>
+          <div class="grid grid-cols-1 gap-2.5">
+            <button type="button" onclick="LobbyManager.startNormalGameWithDifficulty('easy')" class="rounded-2xl border border-emerald-500 bg-emerald-950/80 px-4 py-3.5 text-left active:scale-[0.98]">
+              <div class="text-sm font-black text-emerald-200">🌱 簡單</div>
+              <div class="text-[11px] text-emerald-300/90 mt-1">較適合熟悉遊戲流程，壓力比較小。</div>
+            </button>
+            <button type="button" onclick="LobbyManager.startNormalGameWithDifficulty('hard')" class="rounded-2xl border border-rose-500 bg-rose-950/70 px-4 py-3.5 text-left active:scale-[0.98]">
+              <div class="text-sm font-black text-rose-200">🔥 困難</div>
+              <div class="text-[11px] text-rose-300/90 mt-1">電腦更積極發育、也更常使用技能。</div>
+            </button>
+          </div>
+          <button type="button" onclick="LobbyManager.closeDifficultyModal()" class="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-black text-slate-200 active:scale-95">取消</button>
         </div>
       </div>
 

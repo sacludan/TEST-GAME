@@ -782,6 +782,7 @@ function gameTick() {
         const damage = 12;
         if (state.player.alive) {
           state.player.hp = Math.max(0, state.player.hp - damage - (state.closedZones.includes(state.player.zone) ? 12 : 0));
+          if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
           if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
         }
         state.ais.filter(ai => ai && ai.alive).forEach(ai => {
@@ -800,6 +801,7 @@ function gameTick() {
       } else if (state.closedZones.includes(state.player.zone)) {
         state.player.hp = Math.max(0, state.player.hp - 12);
         addLog('⚡ 警告！你位於禁區內，遭到高壓電流轟擊 (-12 HP)！請立刻移動！', 'text-rose-500 font-black');
+        if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
         if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
         if (state.player.hp <= 0) {
           // 普通禁區觸電也會觸發豬勾亮的單次免死，耗盡後才真的淘汰。
@@ -962,6 +964,7 @@ function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
   if (!found) {
     addLog('🔍 這次沒有找到任何物資，再搜尋或換個地點試試。', 'text-slate-400');
   } else {
+    if (window.GameAudio?.playSfx) window.GameAudio.playSfx('search');
     renderLootChoice();
   }
   return found;

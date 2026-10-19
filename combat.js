@@ -260,8 +260,18 @@ function applyDamageToTarget(attacker, defender, rawDamage, isCrit = false, labe
   if (result.damage <= 0) return 0;
   triggerCombatShake("combat-panel");
   try { renderCombatDamageFloat(enemyHpContainer, `-${result.damage}`, isCrit); } catch (err) { console.warn("Damage display failed:", err); }
+  if (attacker === state.player && window.GameAudio?.playSfx) {
+    window.GameAudio.playSfx('hit');
+  }
+  if (defender === state.player) {
+    if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
+    if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
+  }
   if (result.reflected) {
-    if (attacker.isPlayer && typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
+    if (attacker === state.player) {
+      if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
+      if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
+    }
     addLog(`🔄 【乾你老師奈德麗】${defender.name} 反彈 ${result.reflected} 傷害！`, "text-rose-400 font-bold");
     if (attacker.hp <= 0) handleUnitDefeat(attacker, defender);
   }

@@ -1,6 +1,6 @@
 /**
  * 【模組：遊戲主大廳 lobby.js】
- * v18.3：首頁改為主選單式介面，角色選擇／測試模式改為彈窗，保留難度選擇。
+ * v19.46：首頁精簡封面；難度改成按下【開始遊戲】後再以彈窗選擇。
  */
 const LobbyManager = {
   selectedPlayerId: "zhugouliang",
@@ -212,6 +212,21 @@ const LobbyManager = {
     if (modal) modal.classList.add("hidden");
   },
 
+  openDifficultyModal() {
+    const modal = document.getElementById('difficulty-select-modal');
+    if (modal) modal.classList.remove('hidden');
+  },
+
+  closeDifficultyModal() {
+    const modal = document.getElementById('difficulty-select-modal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  startNormalGameWithDifficulty(difficulty) {
+    this.selectDifficulty(difficulty);
+    this.startGame('normal');
+  },
+
   toggleTestBot(charId) {
     if (charId === this.selectedPlayerId) return;
     const idx = this.selectedTestBotIds.indexOf(charId);
@@ -274,6 +289,7 @@ const LobbyManager = {
     this.closeTestModeModal();
     this.closeTutorialModal();
     this.closeTestSetupModal();
+    this.closeDifficultyModal();
   },
 
   // mode 支援: 'normal' (正常對戰), 'sandbox' (原版無縮圈無NPC測試), 'char_test' (立法院角色測試)
