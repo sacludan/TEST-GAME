@@ -283,7 +283,10 @@ const LobbyManager = {
 
     if (this._startingGame) return;
     // V19.43: user-gesture-triggered soundtrack, does not affect AI or gameplay.
-    if (window.GameAudio) window.GameAudio.play();
+    if (window.GameAudio) {
+      window.GameAudio.play();
+      window.GameAudio.closePanel();
+    }
     this._startingGame = true;
     this.closeAllLobbyModals();
     const mapLoading = document.getElementById('map-loading-status');

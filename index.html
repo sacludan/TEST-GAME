@@ -265,7 +265,7 @@
 
     <div id="fps-blood-hit-overlay"></div>
 
-    <!-- V19.43 音樂音量面板：不影響遊戲操作，首次須由使用者操作播放 -->
+    <!-- V19.44 音樂音量面板：不影響遊戲操作，首次須由使用者操作播放 -->
     <div id="audio-settings-panel" role="group" aria-label="音樂設定" class="hidden absolute top-12 right-3 z-[70] w-[216px] rounded-xl border border-slate-600 bg-slate-950/95 shadow-2xl p-3 space-y-2 text-left" onclick="event.stopPropagation()">
       <div class="text-xs font-black text-slate-100">🎧 黑暗生存配樂</div>
       <label for="audio-volume" class="block text-[11px] text-slate-300">背景音樂音量 <span id="audio-volume-label">30%</span></label>
@@ -331,7 +331,7 @@
             </button>
 
             <div class="text-[10px] text-slate-600 text-center pb-1">
-              V19.43
+              V19.44
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900 hover:bg-slate-800 border border-slate-700 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5">
@@ -468,8 +468,6 @@
                 <span id="current-zone-alert-pill" class="hidden text-[10px] font-black px-1.5 py-0.5 rounded animate-pulse"></span>
               </div>
             </div>
-
-            <button id="audio-button-game" type="button" onclick="event.stopPropagation(); GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="flex-shrink-0 px-2 py-1.5 bg-slate-900/90 border border-slate-700 text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-800">🎵</button>
 
             <button id="main-map-btn" onclick="event.stopPropagation(); openMapModal();" class="flex-shrink-0 relative px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 border-2 border-amber-500/80 rounded-xl flex flex-col items-center justify-center shadow-md transition">
               <span class="text-xs font-black text-amber-400">移動</span>
@@ -734,6 +732,16 @@
             <p class="text-xs text-slate-400 mt-1">確定要離開目前的生存對戰嗎？</p>
           </div>
 
+          <!-- V19.44: 音樂設定整合到右下角「選單 / 離開」 -->
+          <section class="rounded-xl border border-slate-700/80 bg-slate-950/70 p-3 text-left space-y-2" aria-label="背景音樂設定">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-black text-slate-100">🎵 背景音樂</span>
+              <button id="audio-mute-button-menu" type="button" onclick="GameAudio.toggleMute()" class="rounded-lg bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 text-[11px] font-bold text-slate-100" aria-label="切換音樂靜音">🔊 音樂開啟</button>
+            </div>
+            <label for="audio-volume-menu" class="flex justify-between text-[11px] text-slate-300"><span>音量</span><span id="audio-volume-label-menu">30%</span></label>
+            <input id="audio-volume-menu" type="range" min="0" max="100" value="30" oninput="GameAudio.setVolume(this.value)" class="w-full accent-indigo-400" aria-label="遊戲背景音樂音量">
+          </section>
+
           <div class="space-y-2 pt-1">
             <button onclick="closeExitConfirmModal()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black rounded-xl text-xs shadow transition">
               繼續遊戲
@@ -851,6 +859,7 @@
     function openExitConfirmModal() {
       const modal = document.getElementById("exit-confirm-modal");
       if (modal) modal.classList.remove("hidden");
+      if (window.GameAudio) GameAudio.refresh();
     }
 
     function closeExitConfirmModal() {
@@ -874,11 +883,11 @@
   <script src="game_config.js?v=60"></script>
   
   <script src="growth.js?v=119"></script>
-  <script src="lobby.js?v=130"></script>
+  <script src="lobby.js?v=1944"></script>
   <script src="ai.js?v=130"></script>
   <script src="combat.js?v=129"></script>
   <script src="main.js?v=1942"></script>
   <script src="growth_ui.js?v=117"></script>
-  <script src="audio_manager.js?v=1943"></script>
+  <script src="audio_manager.js?v=1944"></script>
 </body>
 </html>

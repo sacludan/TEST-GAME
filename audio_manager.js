@@ -1,4 +1,4 @@
-/* 台灣生存戰 V19.43 — A 黑暗生存配樂 (BGM only). */
+/* 台灣生存戰 V19.44 — A 黑暗生存配樂 (BGM only). */
 (function () {
   'use strict';
   const KEY = 'formosa_survival_bgm_v1';
@@ -26,11 +26,20 @@
     const mute = document.getElementById('audio-mute-button');
     if (volume) volume.value = String(settings.volume);
     if (label) label.textContent = settings.volume + '%';
+    const menuVolume = document.getElementById('audio-volume-menu');
+    const menuLabel = document.getElementById('audio-volume-label-menu');
+    if (menuVolume) menuVolume.value = String(settings.volume);
+    if (menuLabel) menuLabel.textContent = settings.volume + '%';
     if (mute) {
       mute.textContent = settings.muted ? '🔇 已靜音' : '🔊 音樂開啟';
       mute.setAttribute('aria-pressed', String(settings.muted));
     }
-    for (const id of ['audio-button-lobby', 'audio-button-game']) {
+    const menuMute = document.getElementById('audio-mute-button-menu');
+    if (menuMute) {
+      menuMute.textContent = settings.muted ? '🔇 已靜音' : '🔊 音樂開啟';
+      menuMute.setAttribute('aria-pressed', String(settings.muted));
+    }
+    for (const id of ['audio-button-lobby']) {
       const btn = document.getElementById(id);
       if (!btn) continue;
       btn.textContent = settings.muted || settings.volume === 0 ? '🔇' : '🎵';
@@ -38,6 +47,7 @@
     }
   }
   const GameAudio = {
+    refresh,
     play() {
       started = true;
       if (settings.muted || settings.volume === 0 || document.hidden) return;
@@ -74,6 +84,16 @@
     getState() { return { ...settings, started, paused: audio.paused, src: audio.currentSrc }; }
   };
   window.GameAudio = GameAudio;
+  // Browsers (especially iPhone Safari) generally forbid sound on page load.
+  // Start it synchronously inside the first real click/tap gesture in the lobby.
+  // Capturing lets music begin BEFORE the click triggers an async loading flow.
+  // If the browser initially refuses, the next tap gives another valid gesture.
+  document.addEventListener('click', function (event) {
+    const lobby = document.getElementById('lobby-screen');
+    if (!lobby || lobby.classList.contains('hidden')) return;
+    if (!event.isTrusted || settings.muted || settings.volume === 0 || document.hidden) return;
+    if (audio.paused) GameAudio.play();
+  }, true);
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       suspendedByVisibility = started && !audio.paused;
