@@ -215,6 +215,14 @@ function zoneSongShowSearchPenalty(entity, zoneId = entity?.zone) {
   return SONG_SHOW_SEARCH_PENALTY_SEC;
 }
 
+// 歌廳秀戰鬥增益只有施放者豬哥亮本人、待在自己開秀的區域且效果尚未結束時生效。
+// 玩家／NPC／平衡 Worker 共用，不影響禁區等非戰鬥傷害。
+function isSongShowCasterBuffActive(entity) {
+  if (!entity || !entity.alive || entity.id !== 'zhugouliang') return false;
+  const show = state.zoneSongShows?.[entity.zone];
+  return !!show && show.caster === entity && zoneSongShowRemaining(entity.zone) > 0;
+}
+
 // ==========================================
 // 3. 角色建立與數值計算
 // ==========================================
@@ -2692,11 +2700,11 @@ function updateUI() {
       bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_HP_REGEN_PER_SEC} HP／秒、+${PASSIVE_SP_REGEN_PER_SEC + REST_SP_REGEN_PER_SEC} SP／秒)</span>`);
     }
     if (p.reflectRemain > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／反彈剩${p.reflectCharges || 0}次</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷50% ${p.reflectRemain}s／反彈剩${p.reflectCharges || 0}次</span>`);
     }
     const showLeft = zoneSongShowRemaining(p.zone);
     if (showLeft > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-fuchsia-950 border border-fuchsia-400 text-fuchsia-200 rounded text-[9px] font-bold">🎤 歌廳秀 ${Math.ceil(showLeft)}s${zoneSongShowSearchPenalty(p) ? '・搜刮+1秒' : ''}</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-fuchsia-950 border border-fuchsia-400 text-fuchsia-200 rounded text-[9px] font-bold">🎤 歌廳秀 ${Math.ceil(showLeft)}s${isSongShowCasterBuffActive(p) ? '・傷害+10%／受傷-10%' : (zoneSongShowSearchPenalty(p) ? '・搜刮+1秒' : '')}</span>`);
     }
     if (p.weakenedRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-600 text-rose-300 rounded text-[9px] font-bold">💤 虛弱 ${p.weakenedRemain}s</span>`);

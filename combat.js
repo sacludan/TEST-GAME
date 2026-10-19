@@ -173,7 +173,7 @@ function castNonCombatActiveSkill() {
 
   if (p.id === "zhugouliang") {
     startZoneSongShow(p);
-    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 45 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
+    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 45 秒！其他角色搜刮 +1 秒；豬哥亮在本區造成傷害 +10%、受到戰鬥傷害 -10%，離開或效果結束即失效。`, 'text-purple-300 font-bold');
   } else if (p.id === "hanguoyu") {
     addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 韓國魚發動技能，一次連摸 3 件物資！`, "text-amber-300 font-bold");
     lootMultipleItemsForPlayer(3, 'all');
@@ -186,7 +186,7 @@ function castNonCombatActiveSkill() {
   } else if (p.id === "yazhoutongshen") {
     p.reflectRemain = 8;
     p.reflectCharges = 2;
-    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，最多反彈 2 次原始傷害的 100%（次數用完仍減傷）！`, "text-amber-300 font-bold");
+    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 50%，最多反彈 2 次原始傷害的 100%（次數用完仍減傷）！`, "text-amber-300 font-bold");
   }
 
   updateUI();
@@ -211,17 +211,23 @@ function resolveCombatHit(attacker, defender, rawDamage) {
     }
     // 判定失敗不重置就緒狀態，也不開始冷卻。
   }
-  // 歌廳秀已改為區域搜刮減速，不再定身或增加受傷傷害。
-  const rawHit = Math.max(6, Math.round(rawDamage));
-  // 亞洲桶神：8 秒內承受攻擊傷害 -75%；只在前兩次有效命中時反彈原始傷害。
+  // 歌廳秀：僅施放者豬哥亮身處其開秀區域、效果有效時，戰鬥傷害 +10%／受傷 -10%。
+  const songAttackBuff = isSongShowCasterBuffActive(attacker);
+  const songDefenseBuff = isSongShowCasterBuffActive(defender);
+  const originalHit = Math.max(6, Math.round(rawDamage));
+  const rawHit = songAttackBuff ? Math.max(1, Math.round(originalHit * 1.1)) : originalHit;
+  // 亞洲桶神：8 秒內承受攻擊傷害 -50%；僅前兩次有效命中反彈原始傷害。
   const shielding = defender.reflectRemain > 0;
-  const damage = shielding ? Math.max(1, Math.round(rawHit * 0.25)) : rawHit;
+  let damage = shielding ? Math.max(1, Math.round(rawHit * 0.5)) : rawHit;
+  if (songDefenseBuff) damage = Math.max(1, Math.round(damage * 0.9));
   defender.hp = Math.max(0, defender.hp - damage);
   result.damage = damage;
   if (shielding && (defender.reflectCharges || 0) > 0) {
     defender.reflectCharges--;
-    attacker.hp = Math.max(0, attacker.hp - rawHit);
-    result.reflected = rawHit;
+    // 反彈也屬戰鬥傷害，若豬哥亮為反彈承受者且開秀增益有效，同樣減傷 10%。
+    const reflectDamage = songAttackBuff ? Math.max(1, Math.round(rawHit * 0.9)) : rawHit;
+    attacker.hp = Math.max(0, attacker.hp - reflectDamage);
+    result.reflected = reflectDamage;
   }
   if (defender.id === "kewenzhe" && balanceHasPassive(defender) && defender.hp > 0) {
     defender.hitTakenCount = (defender.hitTakenCount || 0) + 1;
@@ -368,8 +374,8 @@ function executeCombatAction(action) {
       }
       case "yazhoutongshen": {
         p.reflectRemain = 8;
-    p.reflectCharges = 2;
-            addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，最多反彈 2 次原始傷害的 100%（次數用完仍減傷）！`, "text-amber-300 font-bold");
+        p.reflectCharges = 2;
+        addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 50%，最多反彈 2 次原始傷害的 100%（次數用完仍減傷）！`, "text-amber-300 font-bold");
         break;
       }
       case "chaoge": {

@@ -23,7 +23,7 @@ const GAME_CHARACTERS = {
       cd: 70,
       costSp: 25,
       combatOnly: false,
-      desc: "不消耗行動（仍需 25 體力），在本區開秀 45 秒：其他角色搜刮 +1 秒；冷卻 70 秒，離區不受影響"
+      desc: "不消耗行動（仍需 25 體力），本區開秀 45 秒：其他角色搜刮 +1 秒；自己在開秀區域造成傷害 +10%、受到戰鬥傷害 -10%；冷卻 70 秒，離區失效"
     },
     passive: {
       name: "豬大哥沒死",
@@ -37,8 +37,8 @@ const GAME_CHARACTERS = {
     title: "尋寶發育型",
     baseAtk: 13,
     baseDef: 13,
-    maxHp: 124,
-    hp: 124,
+    maxHp: 134,
+    hp: 134,
     maxSp: 110,
     sp: 110,
     alive: true,
@@ -163,7 +163,7 @@ const GAME_CHARACTERS = {
       cd: 25,
       costSp: 20,
       combatOnly: false,
-      desc: "8 秒內受到攻擊傷害 -75%，期間最多反彈 2 次原始傷害 100%（反彈用完仍減傷）"
+      desc: "8 秒內受到攻擊傷害 -50%，期間最多反彈 2 次原始傷害 100%（反彈用完仍減傷）"
     },
     passive: {
       name: "鼎王吃到飽",
