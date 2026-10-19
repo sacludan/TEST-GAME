@@ -726,24 +726,24 @@ function gameTick() {
         state.ais.filter(ai => ai && ai.alive).forEach(ai => {
           ai.hp = Math.max(0, ai.hp - damage - (state.closedZones.includes(ai.zone) ? 12 : 0));
         });
-        // 先標記玩家死亡，避免同一秒兩邊都倒地時錯判玩家勝利。
-        const playerDead = state.player.alive && state.player.hp <= 0;
-        if (playerDead) state.player.alive = false;
+        // 玩家被終局電流擊倒時，也要經過與一般戰鬥相同的免死判定。
+        // 先處理玩家，再處理 NPC：玩家若已用過免死，不能因同秒 NPC 全滅而誤判勝利。
+        if (state.player.alive && state.player.hp <= 0) {
+          handleUnitDefeat(state.player, null);
+          if (state.gameOver) return;
+        }
         state.ais.filter(ai => ai && ai.alive && ai.hp <= 0).forEach(ai => {
           if (typeof aiResolveUnitDefeat === 'function') aiResolveUnitDefeat(ai, null);
           else ai.alive = false;
         });
-        if (playerDead) {
-          triggerGameOver(false, '最終禁區倒數結束，你在皇城決戰中遭到淘汰！');
-          return;
-        }
       } else if (state.closedZones.includes(state.player.zone)) {
         state.player.hp = Math.max(0, state.player.hp - 12);
         addLog('⚡ 警告！你位於禁區內，遭到高壓電流轟擊 (-12 HP)！請立刻移動！', 'text-rose-500 font-black');
         if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
         if (state.player.hp <= 0) {
-          triggerGameOver(false, '你滯留於禁區過久，遭到淘汰！');
-          return;
+          // 普通禁區觸電也會觸發豬勾亮的單次免死，耗盡後才真的淘汰。
+          handleUnitDefeat(state.player, null);
+          if (state.gameOver) return;
         }
       }
     }
@@ -1247,7 +1247,7 @@ function useOrEquipBagItem(bagIndex) {
     let healSp = item.sp || 0;
 
     // 亞洲桶神被動：鼎王吃到飽 (食物回血量提升 20%)
-    if (p.id === "tonggod" && healHp > 0) {
+    if (p.id === "yazhoutongshen" && healHp > 0) {
       healHp = Math.round(healHp * 1.2);
     }
 
