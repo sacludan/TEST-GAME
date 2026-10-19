@@ -872,6 +872,8 @@ function triggerSearch() {
 
   p.sp -= PLAYER_SEARCH_SP_COST;
   state.isSearching = true;
+  // V19.48: 開始讀條就播放翻找聲，不再等找到物品才播放。
+  if (window.GameAudio?.playSfx) window.GameAudio.playSfx('search');
   const searchedZoneId = p.zone;
 
   // 王世間隱蔽期間，玩家與 NPC 都使用 0.5 秒搜刮時間
@@ -913,6 +915,8 @@ function triggerSearch() {
 
   const startedAt = performance.now();
   const clearSearchBar = () => {
+    // 搜刮完成、受襲或離開區域時，翻找音跟讀條一起結束。
+    if (window.GameAudio?.stopSfx) window.GameAudio.stopSfx('search');
     if (barAnimation) { barAnimation.cancel(); barAnimation = null; }
     if (progressBar) {
       progressBar.style.transition = 'none';
@@ -964,7 +968,6 @@ function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
   if (!found) {
     addLog('🔍 這次沒有找到任何物資，再搜尋或換個地點試試。', 'text-slate-400');
   } else {
-    if (window.GameAudio?.playSfx) window.GameAudio.playSfx('search');
     renderLootChoice();
   }
   return found;

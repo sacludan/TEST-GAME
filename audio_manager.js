@@ -1,4 +1,4 @@
-/* 台灣生存戰 V19.46 — 背景音樂 + 寫實音效（搜刮 / 命中 / 受傷）+ 禁區警報。 */
+/* 台灣生存戰 V19.48 — 背景音樂 + 寫實音效（搜刮 / 命中 / 受傷）+ 禁區警報。 */
 (function () {
   'use strict';
 
@@ -23,8 +23,10 @@
     hurt:   { src: 'assets/audio/sfx_player_hurt.mp3', gain: 0.78 }
   };
   const sfxSources = Object.create(null);
+  const sfxBuffers = Object.create(null);
   const activeSfx = new Set();
   let sfxPrimed = false;
+  let sfxDecodeStarted = false;
   for (const [name, cfg] of Object.entries(sfxConfig)) {
     const audio = new Audio(cfg.src);
     audio.preload = 'auto';
@@ -45,42 +47,98 @@
     return Math.max(0, Math.min(1, (settings.volume / 100) * multiplier));
   }
 
-  function stopAllSfx() {
-    activeSfx.forEach(clip => {
-      try {
-        clip.pause();
-        clip.currentTime = 0;
-      } catch (_) {}
-    });
-    activeSfx.clear();
+  function stopSfx(name) {
+    for (const entry of [...activeSfx]) {
+      if (!name || entry.name === name) entry.stop();
+    }
+  }
+
+  function stopAllSfx() { stopSfx(); }
+
+  function decodeSfxBuffers() {
+    // Web Audio 在首次點擊啟用後可由定時器觸發，避免 iPhone Safari 封鎖非手勢觸發的 Audio.play()。
+    if (sfxDecodeStarted || !alertContext || typeof alertContext.decodeAudioData !== 'function' || typeof fetch !== 'function') return;
+    sfxDecodeStarted = true;
+    for (const [name, cfg] of Object.entries(sfxConfig)) {
+      fetch(cfg.src)
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.arrayBuffer();
+        })
+        .then(buffer => alertContext.decodeAudioData(buffer))
+        .then(decoded => { sfxBuffers[name] = decoded; })
+        .catch(err => { console.debug(`寫實音效 ${name} 緩衝失敗，改用音訊檔備援`, err); });
+    }
   }
 
   function primeSfx() {
-    if (sfxPrimed) return;
-    sfxPrimed = true;
-    Object.values(sfxSources).forEach(audio => {
-      try { audio.load(); } catch (_) {}
-    });
+    if (!sfxPrimed) {
+      sfxPrimed = true;
+      Object.values(sfxSources).forEach(audio => {
+        try { audio.load(); } catch (_) {}
+      });
+    }
+    decodeSfxBuffers();
   }
 
   function playSfx(name) {
     const source = sfxSources[name];
     const cfg = sfxConfig[name];
-    if (!source || !cfg || settings.muted || settings.volume <= 0 || document.hidden) return;
+    if (!source || !cfg || settings.muted || settings.volume <= 0 || document.hidden) return false;
+
+    // 優先使用首次點擊解鎖的 AudioContext：NPC 在背景計時器攻擊玩家時也能播放。
+    const context = alertContext;
+    if (context && context.state === 'running' && sfxBuffers[name] &&
+        typeof context.createBufferSource === 'function') {
+      try {
+        const node = context.createBufferSource();
+        const gain = context.createGain();
+        node.buffer = sfxBuffers[name];
+        gain.gain.value = calcVolume(cfg.gain);
+        node.connect(gain);
+        gain.connect(context.destination);
+        const entry = {
+          name,
+          stop() {
+            try { node.stop(); } catch (_) {}
+            try { node.disconnect(); gain.disconnect(); } catch (_) {}
+            activeSfx.delete(entry);
+          }
+        };
+        node.onended = () => {
+          try { node.disconnect(); gain.disconnect(); } catch (_) {}
+          activeSfx.delete(entry);
+        };
+        activeSfx.add(entry);
+        node.start();
+        return true;
+      } catch (err) {
+        console.debug(`音效 ${name} Web Audio 播放失敗`, err);
+      }
+    }
+
+    // 音訊快取尚未解碼或 file:// 環境：保留原本 HTMLAudio 播放路徑。
     try {
       const clip = source.cloneNode(true);
       clip.preload = 'auto';
       clip.volume = calcVolume(cfg.gain);
-      activeSfx.add(clip);
-      const cleanup = () => activeSfx.delete(clip);
+      const entry = {
+        name,
+        stop() {
+          try { clip.pause(); clip.currentTime = 0; } catch (_) {}
+          activeSfx.delete(entry);
+        }
+      };
+      activeSfx.add(entry);
+      const cleanup = () => activeSfx.delete(entry);
       clip.addEventListener('ended', cleanup, { once: true });
       clip.addEventListener('error', cleanup, { once: true });
       const promise = clip.play();
-      if (promise && typeof promise.catch === 'function') {
-        promise.catch(() => cleanup());
-      }
+      if (promise && typeof promise.catch === 'function') promise.catch(cleanup);
+      return true;
     } catch (err) {
       console.debug(`音效 ${name} 播放失敗`, err);
+      return false;
     }
   }
 
@@ -90,6 +148,7 @@
     if (!Ctor) return;
     try {
       if (!alertContext) alertContext = new Ctor();
+      decodeSfxBuffers();
       if (alertContext.state === 'suspended') {
         const promise = alertContext.resume();
         if (promise?.catch) promise.catch(() => {});
@@ -151,6 +210,7 @@
     refresh,
     primeSfx,
     playSfx,
+    stopSfx,
     syncZoneWarning(isPending, remainSeconds = 120) {
       const active = !!isPending;
       if (!active) {
@@ -170,8 +230,8 @@
     },
     play() {
       started = true;
-      primeSfx();
       unlockAlertAudio();
+      primeSfx();
       if (settings.muted || settings.volume === 0 || document.hidden) return;
       bgm.volume = settings.volume / 100;
       const promise = bgm.play();
