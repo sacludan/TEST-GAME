@@ -293,44 +293,36 @@
 
     <!-- 1. 遊戲主大廳畫面 -->
     <div id="lobby-screen" class="absolute inset-0 bg-slate-950 z-50 overflow-hidden">
-      <img src="assets/ui/lobby_bg_taipei_survivor.jpg" alt="首頁背景" draggable="false" class="absolute inset-0 h-full w-full object-cover object-center pointer-events-none select-none" style="-webkit-user-drag:none;" />
-      <div class="absolute inset-0 bg-gradient-to-b from-slate-950/18 via-slate-950/10 to-slate-950/92"></div>
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_center_bottom,rgba(2,6,23,0.10),rgba(2,6,23,0.86)_72%)]"></div>
+      <img src="assets/ui/lobby_bg_taipei_survivor_v2.jpg" alt="首頁背景" draggable="false" class="absolute inset-0 h-full w-full object-cover object-center pointer-events-none select-none" style="-webkit-user-drag:none;" />
 
-      <button id="audio-button-lobby" type="button" onclick="GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="absolute top-3 right-3 z-20 bg-slate-900/90 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold hover:bg-slate-800">🎵</button>
-
-      <div class="absolute left-1/2 -translate-x-1/2 top-[18%] z-20 text-center pointer-events-none">
-        <div class="text-[34px] leading-[0.92] font-black tracking-[0.18em] text-white" style="text-shadow:0 4px 18px rgba(0,0,0,.85),0 0 10px rgba(0,0,0,.7);">台北</div>
-        <div class="mt-1 text-[34px] leading-[0.92] font-black tracking-[0.12em] text-white" style="text-shadow:0 4px 18px rgba(0,0,0,.85),0 0 10px rgba(0,0,0,.7);">倖存者</div>
-      </div>
+      <button id="audio-button-lobby" type="button" onclick="GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="absolute top-3 right-3 z-20 bg-slate-900/80 border border-slate-600 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold hover:bg-slate-800">🎵</button>
 
       <div class="relative z-10 flex h-full flex-col px-4 pt-5 pb-4">
         <div class="flex-1"></div>
 
         <div class="shrink-0 space-y-3 pb-1">
-          <button onclick="LobbyManager.openDifficultyModal()" class="block w-[88%] mx-auto py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 active:scale-95 text-slate-950 font-black rounded-2xl text-lg shadow-lg transition">
+          <button onclick="LobbyManager.openDifficultyModal()" class="block w-[78%] mx-auto py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 active:scale-95 text-slate-950 font-black rounded-2xl text-lg shadow-lg transition">
             開始遊戲
           </button>
 
-          <div id="scene-preload-status" role="status" class="hidden text-center text-slate-400 text-[10px] font-bold">🖼️ 場景背景預載準備中…</div>
-          <div id="map-loading-status" role="status" class="hidden text-center rounded-xl border border-amber-500/40 bg-slate-900/90 text-amber-200 px-3 py-2 text-xs font-bold">🗺️ 正在載入地圖、場景背景並準備互動區域，請稍候…</div>
-
-          <button onclick="LobbyManager.openCharacterSelectModal()" class="block w-[88%] mx-auto py-3.5 bg-slate-900/86 hover:bg-slate-800/92 active:scale-95 border border-slate-600 text-slate-100 font-black rounded-2xl text-base shadow transition flex items-center justify-center gap-2 backdrop-blur-[1px]">
-            <span>角色選擇</span>
-            <span class="text-xs text-amber-300 font-bold">｜目前：<span id="selected-char-inline">豬勾亮</span></span>
-          </button>
+          <div id="scene-preload-status" role="status" class="hidden text-center text-slate-300 text-[10px] font-bold">🖼️ 場景背景預載準備中…</div>
+          <div id="map-loading-status" role="status" class="hidden text-center rounded-xl border border-amber-500/40 bg-slate-900/80 text-amber-200 px-3 py-2 text-xs font-bold">🗺️ 正在載入地圖、場景背景並準備互動區域，請稍候…</div>
 
           <div class="flex items-end justify-between pt-1">
-            <button onclick="LobbyManager.openTestModeModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/86 hover:bg-slate-800 border border-slate-600 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
+            <button onclick="LobbyManager.openTestModeModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
               <span class="text-2xl leading-none">🧪</span>
               <span class="text-[11px] font-black">測試模式</span>
             </button>
 
-            <div class="text-[10px] text-slate-500 text-center pb-1">
-              V19.48
+            <div class="flex flex-col items-center gap-2 pb-1 min-w-[148px]">
+              <button onclick="LobbyManager.openCharacterSelectModal()" class="block w-[150px] py-3 bg-slate-900/72 hover:bg-slate-800/82 active:scale-95 border border-slate-500/70 text-slate-100 font-black rounded-2xl text-sm shadow transition backdrop-blur-[1px] text-center">
+                <span>角色選擇</span>
+                <span class="block text-[11px] text-amber-300 font-bold mt-0.5">目前：<span id="selected-char-inline">豬勾亮</span></span>
+              </button>
+              <div class="text-[10px] text-slate-200/75 text-center">V19.49</div>
             </div>
 
-            <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/86 hover:bg-slate-800 border border-slate-600 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
+            <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
               <span class="text-2xl leading-none">📖</span>
               <span class="text-[11px] font-black">教學模式</span>
             </button>
