@@ -239,6 +239,9 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     stunRemain: 0,
     stealthRemain: 0,
     reflectRemain: 0,
+    reflectHitsRemaining: 0,
+    radarProtectionRemain: 0,
+    radarCooldownRemain: 0,
     milkDefBuffRemain: 0,
     weakenedRemain: 0,
     dodgeReady: (tpl.id === "jiangwanan"),
@@ -662,6 +665,8 @@ function tickEntityTimers(entity) {
   if (entity.skillCdRemain > 0) entity.skillCdRemain--;
   if (entity.stunRemain > 0) entity.stunRemain--;
   if (entity.reflectRemain > 0) entity.reflectRemain--;
+  if (entity.radarProtectionRemain > 0) entity.radarProtectionRemain--;
+  if (entity.radarCooldownRemain > 0) entity.radarCooldownRemain--;
   if (entity.milkDefBuffRemain > 0) entity.milkDefBuffRemain--;
   if (entity.weakenedRemain > 0) entity.weakenedRemain--;
   if (entity.guanPassiveCd > 0) entity.guanPassiveCd--;
@@ -1155,11 +1160,16 @@ function executeSearchFinish() {
       a && a.alive && a.zone === p.zone && (a.stealthRemain || 0) <= 0
     );
 
-    if (sameZoneAIs.length > 0 && Math.random() < 0.65) {
-      const targetAI = sameZoneAIs[Math.floor(Math.random() * sameZoneAIs.length)];
-      if (typeof startCombat === 'function') {
-        startCombat(targetAI);
-        return;
+    if (sameZoneAIs.length > 0) {
+      const encounterRoll = Math.random();
+      if (encounterRoll < 0.65) {
+        const targetAI = sameZoneAIs[Math.floor(Math.random() * sameZoneAIs.length)];
+        if (encounterRoll < getSearchEncounterChance(p, targetAI)) {
+          if (typeof startCombat === 'function') {
+            startCombat(targetAI);
+            return;
+          }
+        }
       }
     }
   }
@@ -1182,19 +1192,30 @@ function triggerPlayerSkillButton(e) {
   }
 }
 
+// 當有人進入韓國魚已在的區域時，觸發雙向降低遇敵率（真人及 AI 共用）。
 function checkHanguoyuRadar(movingEntity, targetZoneId) {
-  if (!state.player || !state.player.alive) return;
-  if (state.player.id !== "hanguoyu" || !balanceHasPassive(state.player)) return;
-  if (movingEntity.isPlayer) return;
-
-  if (targetZoneId === state.player.zone) {
-    addLog(`🚨 【禿子跟著月亮走】雷達感應！有其他角色進入了你所在的【${getSafeCurrentZone(targetZoneId).name}】！`, "text-rose-400 font-black");
-    const banner = document.getElementById("radar-warning-banner");
-    if (banner) {
-      banner.classList.remove("hidden");
-      setTimeout(() => banner.classList.add("hidden"), 3500);
+  const candidates = [state.player, ...(state.ais || [])];
+  for (const h of candidates) {
+    if (!h || !h.alive || h === movingEntity || h.id !== 'hanguoyu' ||
+        !balanceHasPassive(h) || h.zone !== targetZoneId || h.radarCooldownRemain > 0) continue;
+    h.radarProtectionRemain = 10;
+    h.radarCooldownRemain = 30;
+    if (h.isPlayer) {
+      addLog(`🚨 【禿子跟著月亮走】雷達感應！有其他角色進入了【${getSafeCurrentZone(targetZoneId).name}】！10 秒內搜刮遇敵率降低至 35%。`, 'text-rose-400 font-black');
+      const banner = document.getElementById('radar-warning-banner');
+      if (banner) {
+        banner.classList.remove('hidden');
+        setTimeout(() => banner.classList.add('hidden'), 3500);
+      }
     }
   }
+}
+// 韓國魚雷達生效期間，不論誰先搜刮、誰被搜到，都套用相同遇敵機率。
+function getSearchEncounterChance(searcher, target) {
+  const radarActive = [searcher, target].some(e =>
+    e && e.alive && e.id === 'hanguoyu' && balanceHasPassive(e) &&
+    (e.radarProtectionRemain || 0) > 0);
+  return radarActive ? 0.35 : 0.65;
 }
 
 // ==========================================
@@ -2259,6 +2280,8 @@ function moveZone(targetZoneId) {
 
   p.sp -= 5;
   p.zone = targetZoneId;
+  // 玩家進入已有韓國魚 NPC 的區域，同樣觸發其警戒被動。
+  checkHanguoyuRadar(p, targetZoneId);
   const targetZone = getSafeCurrentZone(targetZoneId);
   addLog(`🏃 移動到了【${targetZone.name}】。`, "text-indigo-300");
 
@@ -2632,7 +2655,7 @@ function updateUI() {
       bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_SP_REGEN_PER_SEC}/秒)</span>`);
     }
     if (p.reflectRemain > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🪞 反彈 ${p.reflectRemain}s</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷 ${p.reflectRemain}s／反彈剩 ${p.reflectHitsRemaining || 0} 次</span>`);
     }
     if (p.milkDefBuffRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🥛 防禦+5 (${p.milkDefBuffRemain}s)</span>`);

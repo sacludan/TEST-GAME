@@ -154,8 +154,9 @@ function castNonCombatActiveSkill() {
     p.milkDefBuffRemain = 10;
     addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 立即恢復 20 HP，並獲得 10 秒防禦力 +5！`, "text-emerald-300 font-bold");
   } else if (p.id === "yazhoutongshen") {
-    p.reflectRemain = 3;
-    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 接下來 3 秒內受到的所有傷害將 100% 反彈！`, "text-amber-300 font-bold");
+    p.reflectRemain = 8;
+    p.reflectHitsRemaining = 2;
+    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 25%，最多反彈 2 次原始傷害的 100%！`, "text-amber-300 font-bold");
   }
 
   updateUI();
@@ -175,13 +176,17 @@ function resolveCombatHit(attacker, defender, rawDamage) {
     result.dodged = true;
     return result;
   }
-  const damage = Math.max(6, Math.round(rawDamage));
+  // 豬勾亮歌廳秀：定身期間受攻擊傷害增加 20%（玩家/NPC 統一結算）。
+  const rawHit = Math.max(6, Math.round(rawDamage * (defender.stunRemain > 0 ? 1.2 : 1)));
+  // 亞洲桶神：8 秒內承受攻擊傷害 -25%，最多反彈兩次減傷前的原始傷害。
+  const shielding = defender.reflectRemain > 0;
+  const damage = shielding ? Math.max(1, Math.round(rawHit * 0.75)) : rawHit;
   defender.hp = Math.max(0, defender.hp - damage);
   result.damage = damage;
-
-  if (defender.reflectRemain > 0) {
-    attacker.hp = Math.max(0, attacker.hp - damage);
-    result.reflected = damage;
+  if (shielding && (defender.reflectHitsRemaining || 0) > 0) {
+    defender.reflectHitsRemaining--;
+    attacker.hp = Math.max(0, attacker.hp - rawHit);
+    result.reflected = rawHit;
   }
   if (defender.id === "kewenzhe" && balanceHasPassive(defender) && defender.hp > 0) {
     defender.hitTakenCount = (defender.hitTakenCount || 0) + 1;
@@ -277,9 +282,9 @@ function executeCombatAction(action) {
 
     switch (p.id) {
       case "zhugouliang": {
-        ai.stunRemain = 5;
+        ai.stunRemain = Math.max(ai.stunRemain || 0, 6);
         triggerCombatShake("combat-panel");
-        addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 豬勾亮開秀！強制讓 ${ai.name} 站在原地 5 秒無法進行任何操作！`, "text-purple-300 font-bold");
+        addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 豬勾亮開秀！強制讓 ${ai.name} 站在原地 6 秒且受到傷害 +20%！`, "text-purple-300 font-bold");
         break;
       }
       case "hanguoyu": {
@@ -296,8 +301,8 @@ function executeCombatAction(action) {
       }
       case "laixiangde": {
         const dmg = applyDamageToTarget(p, ai, baseDmg * 1.0, false, "打掉雜質");
-        p.gongdeStacks = Math.min(10, (p.gongdeStacks || 0) + 1);
-        addLog(`🧹 <span class="text-purple-300 font-black">【打掉雜質】</span> 對 ${ai.name} 造成 ${dmg} 點傷害！【做功德】累積功德值：${p.gongdeStacks}/10（攻擊力 +${p.gongdeStacks}）！`, "text-purple-300 font-bold");
+        if (balanceHasPassive(p)) p.gongdeStacks = Math.min(15, (p.gongdeStacks || 0) + 3);
+        addLog(`🧹 <span class="text-purple-300 font-black">【打掉雜質】</span> 對 ${ai.name} 造成 ${dmg} 點傷害！【做功德】累積功德值：${p.gongdeStacks}/15（攻擊力 +${p.gongdeStacks}）！`, "text-purple-300 font-bold");
 
         if (ai.hp > 0) {
           const safeZones = getSafeZones().filter(z =>
@@ -308,6 +313,7 @@ function executeCombatAction(action) {
           if (safeZones.length > 0) {
             const dest = safeZones[Math.floor(Math.random() * safeZones.length)];
             ai.zone = dest.id;
+            if (typeof checkHanguoyuRadar === 'function') checkHanguoyuRadar(ai, dest.id);
             addLog(`💨 ${ai.name} 被成功打離此地圖，飛往了【${dest.name}】！`, "text-sky-300 font-bold");
           } else {
             addLog(`💨 ${ai.name} 被震退脫離戰鬥！`, "text-sky-300 font-bold");
@@ -327,8 +333,9 @@ function executeCombatAction(action) {
         break;
       }
       case "yazhoutongshen": {
-        p.reflectRemain = 3;
-        addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 接下來 3 秒內受到的所有傷害將 100% 反彈！`, "text-amber-300 font-bold");
+        p.reflectRemain = 8;
+        p.reflectHitsRemaining = 2;
+        addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 25%，最多反彈 2 次原始傷害的 100%！`, "text-amber-300 font-bold");
         break;
       }
       case "chaoge": {
@@ -371,16 +378,16 @@ function executeCombatAction(action) {
 }
 
 function handleUnitDefeat(victim, killer) {
-  // 豬勾亮被動【豬大哥沒死】：恢復 20% 血量並瞬移到其他區域
+  // 豬勾亮被動【豬大哥沒死】：恢復 30% 血量並瞬移到其他區域
   if (victim.id === "zhugouliang" && balanceHasPassive(victim) && !victim.pigReviveUsed) {
     victim.pigReviveUsed = true;
-    victim.hp = Math.max(1, Math.round(victim.maxHp * 0.2));
+    victim.hp = Math.max(1, Math.round(victim.maxHp * 0.3));
 
     const openZones = getSafeZones().filter(z => !state.closedZones.includes(z.id) && z.id !== victim.zone);
     const dest = openZones.length > 0 ? openZones[Math.floor(Math.random() * openZones.length)] : getSafeCurrentZone(victim.zone);
     victim.zone = dest.id;
 
-    addLog(`✨ <span class="text-amber-300 font-black">【豬大哥沒死】</span> ${victim.name} 發動免死被動！恢復 20% 生命值 (${victim.hp} HP) 並瞬移至【${dest.name}】！`, "text-amber-300 font-bold");
+    addLog(`✨ <span class="text-amber-300 font-black">【豬大哥沒死】</span> ${victim.name} 發動免死被動！恢復 30% 生命值 (${victim.hp} HP) 並瞬移至【${dest.name}】！`, "text-amber-300 font-bold");
     if (victim !== state.player && typeof checkHanguoyuRadar === "function") {
       checkHanguoyuRadar(victim, dest.id);
     }

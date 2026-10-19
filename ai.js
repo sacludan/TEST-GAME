@@ -1034,10 +1034,13 @@ function aiResolveUnitDefeat(victim, killer) {
   if (!victim || victim.hp > 0 || !victim.alive) return false;
   if (victim.id === "zhugouliang" && balanceHasPassive(victim) && !victim.pigReviveUsed) {
     victim.pigReviveUsed = true;
-    victim.hp = Math.max(1, Math.round(victim.maxHp * 0.2));
+    victim.hp = Math.max(1, Math.round(victim.maxHp * 0.3));
     const safe = getSafeOpenZonesForAI(victim.zone);
     const dest = safe[Math.floor(Math.random() * safe.length)];
-    if (dest) victim.zone = dest.id;
+    if (dest) {
+      victim.zone = dest.id;
+      if (typeof checkHanguoyuRadar === 'function') checkHanguoyuRadar(victim, dest.id);
+    }
     victim.aiSearchingUntilSec = null;
     aiStopRest(victim);
     aiCommitAction(victim);
@@ -1085,18 +1088,21 @@ function aiUseCombatSkill(attacker, defender) {
   let damage = 0;
   switch (attacker.id) {
     case "zhugouliang":
-      defender.stunRemain = Math.max(defender.stunRemain || 0, 5);
+      defender.stunRemain = Math.max(defender.stunRemain || 0, 6);
       break;
     case "kewenzhe":
       damage = aiSkillDamage(attacker, defender, 1.5 + hpMissing * 0.5);
       break;
     case "laixiangde":
       damage = aiSkillDamage(attacker, defender, 1);
-      attacker.gongdeStacks = Math.min(10, (attacker.gongdeStacks || 0) + 1);
+      if (balanceHasPassive(attacker)) attacker.gongdeStacks = Math.min(15, (attacker.gongdeStacks || 0) + 3);
       if (defender.hp > 0) {
         const safe = getSafeOpenZonesForAI(defender.zone);
         const dest = safe[Math.floor(Math.random() * safe.length)];
-        if (dest) defender.zone = dest.id;
+        if (dest) {
+          defender.zone = dest.id;
+          if (typeof checkHanguoyuRadar === 'function') checkHanguoyuRadar(defender, dest.id);
+        }
       }
       break;
     case "chenaguan":
@@ -1106,7 +1112,8 @@ function aiUseCombatSkill(attacker, defender) {
       attacker.weakenedRemain = 15;
       break;
     case "yazhoutongshen":
-      attacker.reflectRemain = 3;
+      attacker.reflectRemain = 8;
+      attacker.reflectHitsRemaining = 2;
       break;
     case "chaoge":
       damage = aiSkillDamage(attacker, defender, 1.5);
@@ -1245,7 +1252,10 @@ function runAIBrain() {
           // 只有「完成搜刮」才可能遇敵；玩家也是合法目標，但 NPC 攻擊真人
           // 只單向結算傷害／技能，不彈戰鬥面板，也不附贈玩家反擊。
           const rivals = aiLivingThreats(ai);
-          const duel = rivals.length && Math.random() < 0.65 ? aiChooseDuelTarget(ai, rivals) : null;
+          // 先抽原本的 65% 遭遇骰，成功才抽對手；沒有雷達時保留舊版的亂數消耗順序。
+          const encounterRoll = Math.random();
+          const opponent = rivals.length && encounterRoll < 0.65 ? aiChooseDuelTarget(ai, rivals) : null;
+          const duel = opponent && encounterRoll < getSearchEncounterChance(ai, opponent) ? opponent : null;
           if (duel) {
             const avoided = aiTryAvoidSearchEncounter(ai, duel);
             if (!avoided) {

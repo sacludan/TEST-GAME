@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=62', 'game_config.js',
-  'growth.js', 'ai.js?v=119', 'combat.js?v=119', 'main.js?v=132'
+  'recipes.js', 'maps.js', 'characters.js?v=63', 'game_config.js',
+  'growth.js', 'ai.js?v=120', 'combat.js?v=120', 'main.js?v=133'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -258,32 +258,38 @@ onmessage = async function (event) {
   started=true; cancelled=false;
   try {
     const n = Math.min(10000, Math.max(1, Math.floor(Number(input.count)||100)));
+    // 多核心收到的是全域場次區段；以絕對場次編號決定亂數與順位。
+    // 因此同種子、同技能設定下，1/2/4/6/8 Worker 結果完全相同。
+    const startIndex = Math.max(0, Math.floor(Number(input.startIndex) || 0));
     const seed = (Number(input.seed)>>>0) || 20261019;
     const difficulty = input.difficulty === 'easy' ? 'easy' : 'hard';
     globalThis.BALANCE_SKILL_OVERRIDES = parseSwitches(input.skillSwitches);
     const matches=[];
-    let rotationBlock=[];
+    let rotationBlock=[], currentBlock = -1;
     const updateEvery=Math.max(1,Math.floor(n/100));
     let previousUpdate=performance.now();
     const runStarted=previousUpdate;
-    for (let i=0; i<n; i++) {
+    for (let j=0; j<n; j++) {
       if (cancelled) break;
-      if (i%heroIds.length===0) {
-        Math.random=seededRandom((seed ^ Math.imul(Math.floor(i/heroIds.length)+777, 0x7F4A7C15))>>>0);
-        rotationBlock=shuffle([...heroIds]);
-        Math.random=nativeRandom;
+      const i = startIndex + j;
+      const block = Math.floor(i / heroIds.length);
+      if (currentBlock !== block) {
+        Math.random = seededRandom((seed ^ Math.imul(block + 777, 0x7F4A7C15)) >>> 0);
+        rotationBlock = shuffle([...heroIds]);
+        Math.random = nativeRandom;
+        currentBlock = block;
       }
       matches.push(simulate(i,seed,difficulty,rotationBlock));
       const now=performance.now();
-      if ((i+1)%updateEvery===0 || now-previousUpdate>=450 || i===n-1) {
-        postMessage({type:'progress', completed:i+1,total:n,elapsedMs:now-runStarted});
+      if ((j+1)%updateEvery===0 || now-previousUpdate>=450 || j===n-1) {
+        postMessage({type:'progress', completed:j+1,total:n,elapsedMs:now-runStarted});
         previousUpdate=now;
         // 讓 Worker 有機會接收停止訊息，不依賴前端瀏覽器的 requestAnimationFrame。
         await new Promise(resolve => setTimeout(resolve,0));
       }
     }
     const report=aggregate(matches);
-    postMessage({type:'done', report, settings:{seed,difficulty,requested:n,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
+    postMessage({type:'done', report, settings:{seed,difficulty,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
   } catch (error) {
     postMessage({type:'error',message:String(error?.stack||error)});
   } finally {
