@@ -40,8 +40,9 @@ function aiCombatOdds(ai, other) {
   const myTurns = Math.ceil(Math.max(1, other.hp) / myDamage);
   const enemyTurns = Math.ceil(Math.max(1, ai.hp) / theirDamage);
   const gearAdv = (getTotalAtk(ai) - getTotalAtk(other)) * 0.35 + (getTotalDef(ai) - getTotalDef(other)) * 0.65;
-  // 閃避、反彈和免死會影響交戰風險，不只看血量。
-  const passiveDanger = (other.id === "jiangwanan" && balanceHasPassive(other) && other.dodgeReady ? 0.65 : 0) + ((other.reflectRemain || 0) > 0 ? 2.0 : 0) +
+  // 不讀取敵人的「問A答B」必閃是否已就緒：AI 不能預知對方的技能冷卻狀態。
+  // 反傷護盾等目前已生效的狀態仍按原本方式評估。
+  const passiveDanger = ((other.reflectRemain || 0) > 0 ? 2.0 : 0) +
     (other.id === "zhugouliang" && balanceHasPassive(other) && !other.pigReviveUsed ? 0.5 : 0);
   return (enemyTurns - myTurns) + gearAdv * 0.035 - passiveDanger;
 }
@@ -954,23 +955,20 @@ function aiFindHealingZone(ai) {
 // 比較「目前血量下預期幾次普通攻擊能分出勝負」，而非用固定的回合差距判斷。
 // 1.30 代表：我方擊倒敵人所需的預估攻擊次數，比敵人擊倒我方多 30%。
 // 包含雙方當前 HP、攻擊、裝備、防禦、熟練度與爆擊期望值；
-// 已準備好的真實必閃，也要算入敵方可承受的攻擊次數。
+// 不偷看敵方蔣萬安必閃的冷卻是否完成；實際受擊時照常觸發必閃。
 function aiEnemyStrengthRatio(ai, enemy) {
   const outgoing = Math.max(1, aiDamageEstimate(ai, enemy));
   const incoming = Math.max(1, aiDamageEstimate(enemy, ai));
-  let attacksToDefeatEnemy = Math.max(1, enemy.hp) / outgoing;
+  const attacksToDefeatEnemy = Math.max(1, enemy.hp) / outgoing;
   const attacksToDefeatMe = Math.max(1, ai.hp) / incoming;
-  if (enemy.id === "jiangwanan" && balanceHasPassive(enemy) && enemy.dodgeReady) {
-    attacksToDefeatEnemy += 1; // 準備好的必閃會令首次普通攻擊無效
-  }
   return attacksToDefeatEnemy / attacksToDefeatMe;
 }
 
 function aiShouldAvoidEncounter(ai, enemy) {
   if (!enemy || !enemy.alive || !ai || !ai.alive) return false;
   // 本次攻擊就能擊倒敵人時，仍要把握機會，不因自身殘血浪費出手。
-  if (aiDamageEstimate(ai, enemy) >= enemy.hp &&
-      !(enemy.id === "jiangwanan" && balanceHasPassive(enemy) && enemy.dodgeReady)) return false;
+  // 只依可見的血量及傷害估計斬殺機會，不提前得知必閃是否可用。
+  if (aiDamageEstimate(ai, enemy) >= enemy.hp) return false;
   const incoming = aiDamageEstimate(enemy, ai);
   const hpRatio = ai.hp / Math.max(1, ai.maxHp);
   const lowHealth = hpRatio <= AI_RETREAT_LOW_HP_RATIO;

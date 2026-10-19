@@ -227,7 +227,7 @@
       for(let i=0;i<workerCount;i++) {
         const startIndex=Math.floor(i*n/workerCount);
         const endIndex=Math.floor((i+1)*n/workerCount);
-        const worker=new Worker('balance_worker.js?v=7');
+        const worker=new Worker('balance_worker.js?v=8');
         jobs.push({worker,startIndex,count:endIndex-startIndex,completed:0,done:false,report:null});
       }
     } catch(e) {
