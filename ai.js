@@ -13,7 +13,12 @@ const AI_SEARCH_SP_COST = 8;
 const AI_MOVE_SP_COST = 5;
 const AI_PASSIVE_SP_REGEN_PER_SEC = 2;
 const AI_REST_SP_REGEN_PER_SEC = 6;
+const AI_REST_HP_REGEN_PER_SEC = 4;
 const AI_REST_TARGET_RATIO = 0.52;
+// NPC 若無可用敵人、沒有即將縮圈的風險，HP 低於 70% 可主動休息；
+// HP 回復到 90% 且 SP 回復到原本的 52% 目標後，繼續正常發育。
+const AI_REST_START_HP_RATIO = 0.70;
+const AI_REST_TARGET_HP_RATIO = 0.90;
 // NPC 避戰容忍度：預估對手的戰鬥優勢達 30% 才因戰力差距撤退。
 const AI_RETREAT_STRENGTH_RATIO = 1.30;
 // 即使對手沒有比較強，自身殘血時仍可優先撤退或補血。
@@ -63,8 +68,15 @@ function aiCommitAction(ai, seconds = AI_ACTION_COOLDOWN_SEC) {
   ai.aiNextActionSec = state.aiTimeSec + seconds;
 }
 
+function aiCanRestSafely(ai) {
+  if (!ai || !ai.alive || ai.hp <= 0 || state.finalStormActive) return false;
+  if (state.closedZones.includes(ai.zone)) return false;
+  if (state.pendingCloseZones.includes(ai.zone) && state.roundTimeRemain <= 32) return false;
+  return aiLivingThreats(ai).length === 0;
+}
+
 function aiStartRest(ai) {
-  if (!ai || ai.aiResting || ai.hp <= 0) return false;
+  if (!ai || ai.aiResting || ai.hp <= 0 || !aiCanRestSafely(ai)) return false;
   ai.aiResting = true;
   ai.lastAIAction = "休息中";
   aiCommitAction(ai);
@@ -78,12 +90,11 @@ function aiStopRest(ai) {
 }
 
 function aiShouldContinueRest(ai) {
-  if (!ai || !ai.aiResting) return false;
-  if (state.closedZones.includes(ai.zone)) return false;
-  if (state.pendingCloseZones.includes(ai.zone) && state.roundTimeRemain <= 18) return false;
+  if (!ai || !ai.aiResting || !aiCanRestSafely(ai)) return false;
   const targetSp = Math.max(AI_SEARCH_SP_COST, Math.round((ai.maxSp || 0) * AI_REST_TARGET_RATIO));
-  if (ai.sp >= targetSp || ai.sp >= ai.maxSp) return false;
-  return aiLivingThreats(ai).length === 0;
+  const needSp = ai.sp < targetSp;
+  const needHp = ai.hp < ai.maxHp * AI_REST_TARGET_HP_RATIO;
+  return needSp || needHp;
 }
 
 function aiReturnItemToZone(ai, itemId) {
@@ -1216,6 +1227,7 @@ function aiAttackPlayerOnSearch(ai) {
   // 每隻 NPC 都獨立從搜刮觸發遭遇並判斷攻擊；不設全場或個別的攻擊間隔。
   // 如果多個 NPC 剛好在同一秒搜刮遇到玩家，允許自然形成連續攻擊。
   const zoneName = getSafeCurrentZone(player.zone)?.name || '未知區域';
+  if (player.isResting && typeof stopPlayerRest === 'function') stopPlayerRest('遭到攻擊，休息中斷。');
   const hpBefore = player.hp;
   const aiHpBefore = ai.hp;
   const wasDodgeReady = !!player.dodgeReady;
@@ -1235,7 +1247,6 @@ function aiAttackPlayerOnSearch(ai) {
   if (dmgTaken > 0) {
     addLog(`⚔️ 【遭遇襲擊】${ai.name} 在【${zoneName}】搜刮遇到你，${action}造成 <b class="text-rose-300">${dmgTaken}</b> 點傷害！`, 'text-rose-400 font-black');
     // 攻擊不是進入遭遇面板；維持玩家目前所在的探索畫面。
-    if (player.isResting && typeof stopPlayerRest === 'function') stopPlayerRest('遭到攻擊，休息中斷。');
     const hitOverlay = typeof document !== 'undefined' ? document.getElementById('fps-blood-hit-overlay') : null;
     if (hitOverlay) {
       hitOverlay.classList.remove('hit-active');
@@ -1279,8 +1290,17 @@ function runAIBrain() {
     if (!ai || !ai.alive || state.gameOver) return;
 
     // AI 每 0.5 秒執行一次：每次只回復一半，總每秒恢復量不變。
+    const restingSafely = ai.aiResting && aiCanRestSafely(ai);
     ai.sp = Math.min(ai.maxSp, ai.sp + AI_PASSIVE_SP_REGEN_PER_SEC * 0.5 +
-      (ai.aiResting ? AI_REST_SP_REGEN_PER_SEC * 0.5 : 0));
+      (restingSafely ? AI_REST_SP_REGEN_PER_SEC * 0.5 : 0));
+    if (restingSafely) {
+      const recovered = Math.min(ai.maxHp - ai.hp, AI_REST_HP_REGEN_PER_SEC * 0.5);
+      if (recovered > 0) {
+        ai.hp += recovered;
+        // 測試器可觀測休息回血，正式遊戲無需額外統計開銷。
+        if (typeof globalThis.recordAIRestHealing === 'function') globalThis.recordAIRestHealing(ai, recovered);
+      }
+    }
     if (state.closedZones.includes(ai.zone) && Number.isInteger(state.aiTimeSec) && !state.finalStormActive) {
       aiStopRest(ai);
       ai.hp = Math.max(0, ai.hp - 12); // 玩家與 NPC 禁區傷害一致
@@ -1357,6 +1377,12 @@ function runAIBrain() {
         return;
       }
       // 沒有真正能到達的較安全地區，就繼續搜刮／在遭遇時應戰。
+    }
+    // HP 過低且沒有同區敵人時，NPC 可以像玩家一樣原地休息回血。
+    // 先使用持有的 HP 補品；不能事先知道其他區有沒有敵人。
+    if (hpRatio < AI_REST_START_HP_RATIO && threats.length === 0 && aiCanRestSafely(ai)) {
+      if (aiUseHPFood(ai)) { aiCommitAction(ai); return; }
+      if (aiStartRest(ai)) return;
     }
     if (ai.id !== "zhugouliang" && aiTryUseNonCombatSkill(ai)) { aiCommitAction(ai); return; }
 

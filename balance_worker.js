@@ -5,7 +5,7 @@ self.document = { readyState: 'loading', addEventListener() {}, getElementById()
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
   'recipes.js', 'maps.js', 'characters.js?v=68', 'game_config.js',
-  'growth.js?v=119', 'ai.js?v=127', 'combat.js?v=125', 'main.js?v=1936'
+  'growth.js?v=119', 'ai.js?v=128', 'combat.js?v=125', 'main.js?v=1938'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -54,6 +54,11 @@ function shuffle(array) {
   return array;
 }
 function track(e) { return e && activeMetrics && activeMetrics[e.id]; }
+// 新版 NPC 休息 +4 HP/秒也應列入「平均回血」，不可只記錄食物／技能。
+globalThis.recordAIRestHealing = function (entity, recovered) {
+  const m = track(entity);
+  if (m) m.healing += recovered;
+};
 
 // 統計是觀測層，覆蓋包裝但不改原版規則。
 const originalHit = resolveCombatHit;

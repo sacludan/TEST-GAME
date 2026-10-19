@@ -180,6 +180,7 @@ let mainTimer = null;
 
 const PASSIVE_SP_REGEN_PER_SEC = 2;
 const REST_SP_REGEN_PER_SEC = 6;
+const REST_HP_REGEN_PER_SEC = 4;
 // 原版禁區為前期輪換、後期永久；本遊戲依使用者要求統一每輪 2 分鐘。
 const ZONE_ROUND_SECONDS = 120;
 const PERMANENT_RESTRICTION_ROUND = 6;
@@ -745,8 +746,15 @@ function gameTick() {
       if (spGain > 0) {
         state.player.sp = Math.min(state.player.maxSp, state.player.sp + spGain);
       }
-      if (state.player.isResting && (state.inCombat || state.isSearching || state.player.sp >= state.player.maxSp)) {
-        stopPlayerRest(state.player.sp >= state.player.maxSp ? '體力已回滿，結束休息。' : '休息被中斷。');
+      if (state.player.isResting) {
+        if (state.inCombat || state.isSearching) {
+          stopPlayerRest('休息被中斷。');
+        } else {
+          state.player.hp = Math.min(state.player.maxHp, state.player.hp + REST_HP_REGEN_PER_SEC);
+          if (state.player.sp >= state.player.maxSp && state.player.hp >= state.player.maxHp) {
+            stopPlayerRest('生命與體力都已回滿，結束休息。');
+          }
+        }
       }
     }
 
@@ -820,12 +828,12 @@ function togglePlayerRest(e) {
   if (p.isResting) {
     stopPlayerRest("你結束休息，重新投入行動。");
   } else {
-    if (p.sp >= p.maxSp) {
-      addLog("你的體力已滿，不需要休息。", "text-slate-300");
+    if (p.sp >= p.maxSp && p.hp >= p.maxHp) {
+      addLog("你的生命與體力都已滿，不需要休息。", "text-slate-300");
       return;
     }
     p.isResting = true;
-    addLog(`🛌 你開始休息：自然回復 +${PASSIVE_SP_REGEN_PER_SEC}/秒，休息額外 +${REST_SP_REGEN_PER_SEC}/秒。`, "text-emerald-300 font-bold");
+    addLog(`🛌 你開始休息：生命 +${REST_HP_REGEN_PER_SEC}/秒、體力 +${PASSIVE_SP_REGEN_PER_SEC + REST_SP_REGEN_PER_SEC}/秒。`, "text-emerald-300 font-bold");
   }
   updateUI();
 }
@@ -2637,15 +2645,15 @@ function updateUI() {
   const isResting = !!(p.isResting && !state.inCombat && !state.isSearching && p.alive);
   if (restStatus) restStatus.classList.toggle("hidden", !isResting);
   if (restBtn) {
-    const canRest = !state.inCombat && !state.isSearching && p.alive && (isResting || p.sp < p.maxSp);
+    const canRest = !state.inCombat && !state.isSearching && p.alive && (isResting || p.sp < p.maxSp || p.hp < p.maxHp);
     const restBtnBase = "w-14 h-14 min-w-[56px] min-h-[56px] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-black shadow transition";
     if (isResting) {
       restBtn.innerHTML = '<span class="text-lg leading-none" aria-hidden="true">🛌</span><span>結束</span>';
       restBtn.setAttribute("aria-label", "結束休息");
       restBtn.className = `${restBtnBase} bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white ring-2 ring-emerald-300/70`;
-    } else if (p.sp >= p.maxSp) {
+    } else if (p.sp >= p.maxSp && p.hp >= p.maxHp) {
       restBtn.innerHTML = '<span class="text-lg leading-none" aria-hidden="true">🛌</span><span>已滿</span>';
-      restBtn.setAttribute("aria-label", "體力已滿，無需休息");
+      restBtn.setAttribute("aria-label", "生命與體力已滿，無需休息");
       restBtn.className = `${restBtnBase} bg-slate-800 text-slate-400`;
     } else {
       restBtn.innerHTML = '<span class="text-lg leading-none" aria-hidden="true">🛌</span><span>休息</span>';
@@ -2686,7 +2694,7 @@ function updateUI() {
       bList.push(`<span class="px-1.5 py-0.5 bg-purple-950 border border-purple-400 text-purple-300 rounded text-[9px] font-bold">🕵️ 隱蔽 ${p.stealthRemain}s</span>`);
     }
     if (p.isResting) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_SP_REGEN_PER_SEC}/秒)</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_HP_REGEN_PER_SEC} HP／秒、+${PASSIVE_SP_REGEN_PER_SEC + REST_SP_REGEN_PER_SEC} SP／秒)</span>`);
     }
     if (p.reflectRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／無限反彈</span>`);
