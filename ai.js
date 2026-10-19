@@ -1039,15 +1039,13 @@ function aiTryUseNonCombatSkill(ai) {
   if (ai.sp < cost) return false;
 
   if (ai.id === "zhugouliang") {
-    // 自由開秀，不佔 NPC 搜刮／攻擊行動；不需要先看到敵人，也不偷看其他角色位置。
-    // 只依據公開地圖是否可搜刮與剩餘 SP 決定，避免在空白／禁區無意義施放。
-    const localZone = MAPS_DATA.zones.find(z => z.id === ai.zone);
-    if (state.closedZones.includes(ai.zone) || !localZone?.drops?.length ||
-        ai.sp < cost + AI_SEARCH_SP_COST || zoneSongShowRemaining(ai.zone) > 0) return false;
+    // 回到先前的 AI 施放方式：只在同區可見其他角色且沒有重複開秀時施放。
+    // 歌廳秀會消耗一次正常 AI 行動，不再免費施放。
+    if (!aiLivingThreats(ai).length || zoneSongShowRemaining(ai.zone) > 0) return false;
     ai.sp -= cost;
     ai.skillCdRemain = skill.cd || 30;
     startZoneSongShow(ai);
-    ai.lastAIAction = `施放${skill.name}（本區60秒搜刮干擾／遇到自己45%）`;
+    ai.lastAIAction = `施放${skill.name}（本區60秒搜刮干擾）`;
     return true;
   }
 
@@ -1134,7 +1132,6 @@ function aiSkillDamage(attacker, defender, multiplier = 1) {
 function aiUseCombatSkill(attacker, defender) {
   const skill = attacker && attacker.skill;
   if (!attacker || !defender || !skill || !attacker.alive || !defender.alive) return false;
-  if (attacker.id === "zhugouliang") return false; // 歌廳秀獨立施放，不取代這次攻擊。
   if (attacker.skillCdRemain > 0 || attacker.stunRemain > 0) return false;
   const cost = Number(skill.costSp ?? skill.sp) || 20;
   if (attacker.sp < cost || (attacker.id === "wangshijian" && attacker.stealthRemain > 0)) return false;
@@ -1153,6 +1150,9 @@ function aiUseCombatSkill(attacker, defender) {
   const hpMissing = 1 - hpRatio;
   let damage = 0;
   switch (attacker.id) {
+    case "zhugouliang":
+      startZoneSongShow(attacker);
+      break;
     case "kewenzhe":
       damage = aiSkillDamage(attacker, defender, 1.5 + hpMissing * 0.5);
       break;
@@ -1175,7 +1175,7 @@ function aiUseCombatSkill(attacker, defender) {
       attacker.weakenedRemain = 15;
       break;
     case "yazhoutongshen":
-      attacker.reflectRemain = 12;
+      attacker.reflectRemain = 8;
       break;
     case "chaoge":
       damage = aiSkillDamage(attacker, defender, 1.5);
@@ -1306,9 +1306,6 @@ function runAIBrain() {
       ai.hp = Math.max(0, ai.hp - 12); // 玩家與 NPC 禁區傷害一致
       if (ai.hp <= 0) { aiResolveUnitDefeat(ai, null); return; }
     }
-    // 豬勾亮地區技可以隨時施放：不等搜刮、不用敵人情報，也不重置行動計時。
-    // 即使正與玩家遭遇，也能施放，不消耗 NPC 原本的搜刮／出手機會。
-    if (ai.id === "zhugouliang") aiTryUseNonCombatSkill(ai);
     if (state.inCombat && state.ai === ai) return;
     if (ai.aiResting) {
       if (aiShouldContinueRest(ai)) { ai.lastAIAction = "休息中"; return; }
@@ -1384,7 +1381,7 @@ function runAIBrain() {
       if (aiUseHPFood(ai)) { aiCommitAction(ai); return; }
       if (aiStartRest(ai)) return;
     }
-    if (ai.id !== "zhugouliang" && aiTryUseNonCombatSkill(ai)) { aiCommitAction(ai); return; }
+    if (aiTryUseNonCombatSkill(ai)) { aiCommitAction(ai); return; }
 
     // 逃離戰鬥後先找能補 HP 的道具，不會一逃走就繼續死追頂級裝備。
     if (ai.aiSeekingHealing) {

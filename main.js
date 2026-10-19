@@ -722,7 +722,7 @@ function tickEntityTimers(entity) {
       if (entity.dodgeCdRemain === 0) {
         entity.dodgeReady = true;
         if (entity.isPlayer) {
-          addLog("🛡️ 被動【問A答B】已就緒！受到攻擊有 70% 機率閃避；失敗冷卻 5 秒。", "text-sky-300 font-bold");
+          addLog("🛡️ 被動【問A答B】已就緒！受到攻擊有 70% 機率閃避；失敗不進入冷卻。", "text-sky-300 font-bold");
         }
       }
     }
@@ -1240,11 +1240,6 @@ function triggerPlayerSkillButton(e) {
   if (e) e.stopPropagation();
   if (state.gameOver || !state.player) return;
   if (state.player.isResting) stopPlayerRest("你停止休息，準備施放技能。");
-  // 歌廳秀為無行動成本的地區技；遭遇中放完仍可選普通攻擊／無視。
-  if (state.player.id === "zhugouliang") {
-    if (typeof castNonCombatActiveSkill === "function") castNonCombatActiveSkill();
-    return;
-  }
   if (state.inCombat) {
     if (typeof executeCombatAction === "function") executeCombatAction("skill");
   } else if (typeof castNonCombatActiveSkill === "function") {
@@ -1253,14 +1248,7 @@ function triggerPlayerSkillButton(e) {
 }
 
 // 韓國魚【愛情摩天輪】已取代舊雷達，所有角色恢復普通 65% 遇敵率。
-function getSearchEncounterChance(searcher, target) {
-  // 遭歌廳秀影響的角色，搜刮遭遇「正在該區開秀的豬勾亮」機率降為 45%。
-  // 歌廳秀對其他目標的遭遇機率仍是 65%，離區或 60 秒期滿立即失效。
-  if (searcher && target && target.id === "zhugouliang" &&
-      searcher.zone === target.zone && zoneSongShowSearchPenalty(searcher) > 0 &&
-      state.zoneSongShows?.[searcher.zone]?.caster === target) return 0.45;
-  return 0.65;
-}
+function getSearchEncounterChance(searcher, target) { return 0.65; }
 
 // ==========================================
 // 8. 6格裝備欄、背包操作與拖曳系統

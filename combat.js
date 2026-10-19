@@ -168,7 +168,7 @@ function castNonCombatActiveSkill() {
 
   if (p.id === "zhugouliang") {
     startZoneSongShow(p);
-    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮 +1 秒，搜到豬勾亮的機率降為 45%（離區即失效）。`, 'text-purple-300 font-bold');
+    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
   } else if (p.id === "hanguoyu") {
     addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 韓國魚發動技能，一次連摸 3 件物資！`, "text-amber-300 font-bold");
     lootMultipleItemsForPlayer(3, 'all');
@@ -179,8 +179,8 @@ function castNonCombatActiveSkill() {
     const healed = healCharactersInZone(p, 30);
     addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 所在區域全體恢復最多 30 HP（包含敵人），${healed.healedCharacters} 人實際恢復共 ${healed.totalHealed} HP！`, "text-emerald-300 font-bold");
   } else if (p.id === "yazhoutongshen") {
-    p.reflectRemain = 12;
-    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 12 秒內減傷 75%，每次受擊均反彈原始傷害的 100%，無次數上限！`, "text-amber-300 font-bold");
+    p.reflectRemain = 8;
+    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，每次受擊均反彈原始傷害的 100%，無次數上限！`, "text-amber-300 font-bold");
   }
 
   updateUI();
@@ -195,7 +195,7 @@ function resolveCombatHit(attacker, defender, rawDamage) {
   const result = { damage: 0, dodged: false, reflected: 0, heal: 0, guan: false };
   if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
   // 問A答B：就緒時每次受擊有 70% 機率完全閃避。
-  // 成功閃避開始 35 秒冷卻；失敗仍受到正常傷害，但開始 5 秒冷卻。
+  // 成功閃避開始 35 秒冷卻；失敗正常受傷且保留就緒狀態。
   if (defender.id === "jiangwanan" && balanceHasPassive(defender) && defender.dodgeReady) {
     if (Math.random() < 0.70) {
       defender.dodgeReady = false;
@@ -203,12 +203,11 @@ function resolveCombatHit(attacker, defender, rawDamage) {
       result.dodged = true;
       return result;
     }
-    defender.dodgeReady = false;
-    defender.dodgeCdRemain = 5;
+    // 判定失敗不重置就緒狀態，也不開始冷卻。
   }
   // 歌廳秀已改為區域搜刮減速，不再定身或增加受傷傷害。
   const rawHit = Math.max(6, Math.round(rawDamage));
-  // 亞洲桶神：12 秒內承受攻擊傷害 -75%，每次被命中均反彈減傷前的原始傷害。
+  // 亞洲桶神：8 秒內承受攻擊傷害 -75%，每次被命中均反彈減傷前的原始傷害。
   const shielding = defender.reflectRemain > 0;
   const damage = shielding ? Math.max(1, Math.round(rawHit * 0.25)) : rawHit;
   defender.hp = Math.max(0, defender.hp - damage);
@@ -298,12 +297,6 @@ function executeCombatAction(action) {
 
   // 3. 選擇【技能】
   if (action === "skill") {
-    // 歌廳秀即使在遭遇時也是自由行動，不佔攻擊回合。
-    if (p.id === "zhugouliang") {
-      castNonCombatActiveSkill();
-      if (state.inCombat) updateCombatUI();
-      return;
-    }
     if (!canUsePlayerSkill(p)) return;
     combatActionBusy = true;
 
@@ -316,6 +309,11 @@ function executeCombatAction(action) {
     const targetHpBeforeSkill = ai.hp;
 
     switch (p.id) {
+      case "zhugouliang": {
+        startZoneSongShow(p);
+        addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
+        break;
+      }
       case "hanguoyu": {
         addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 一次搜出 3 個道具！`, "text-amber-300 font-bold");
         lootMultipleItemsForPlayer(3, 'all');
@@ -362,8 +360,8 @@ function executeCombatAction(action) {
         break;
       }
       case "yazhoutongshen": {
-        p.reflectRemain = 12;
-            addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 12 秒內減傷 75%，每次受擊均反彈原始傷害的 100%，無次數上限！`, "text-amber-300 font-bold");
+        p.reflectRemain = 8;
+            addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，每次受擊均反彈原始傷害的 100%，無次數上限！`, "text-amber-300 font-bold");
         break;
       }
       case "chaoge": {
