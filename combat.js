@@ -261,6 +261,7 @@ function applyDamageToTarget(attacker, defender, rawDamage, isCrit = false, labe
   triggerCombatShake("combat-panel");
   try { renderCombatDamageFloat(enemyHpContainer, `-${result.damage}`, isCrit); } catch (err) { console.warn("Damage display failed:", err); }
   if (result.reflected) {
+    if (attacker.isPlayer && typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
     addLog(`🔄 【乾你老師奈德麗】${defender.name} 反彈 ${result.reflected} 傷害！`, "text-rose-400 font-bold");
     if (attacker.hp <= 0) handleUnitDefeat(attacker, defender);
   }

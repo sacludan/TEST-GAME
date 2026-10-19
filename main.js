@@ -553,6 +553,7 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   state.permanentClosedZones = [];
   state.finalStormActive = false;
   state.pendingCloseZones = [];
+  if (typeof window !== 'undefined' && window.GameAudio?.syncZoneWarning) window.GameAudio.syncZoneWarning(false);
   state.inCombat = false;
   state.nextPlayerAmbushSec = 0;
   state.isSearching = false;
@@ -950,8 +951,12 @@ function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
       pool.push(itemId);
       continue;
     }
-    // growthCredit === 'all' 用於韓國魚三連搜：每件真正撿取的道具都給搜刮 EXP。
-    state.pendingLootQueue.push({ itemId, zoneId: zoneObj.id, growthCredit: growthCredit === 'all' || (growthCredit && found === 0) });
+    // V19.45：成功搜到道具當下給搜刮 EXP，不依賴拾取／裝備／忽略選項。
+    // 韓國瑜的三件搜刮仍逐件計算，沒有搜到道具則不給 EXP。
+    if ((growthCredit === 'all' || (growthCredit && found === 0)) && typeof grantSearchGrowth === 'function') {
+      grantSearchGrowth(p);
+    }
+    state.pendingLootQueue.push({ itemId, zoneId: zoneObj.id });
     found++;
   }
   if (!found) {
@@ -1198,8 +1203,7 @@ function resolveLootChoice(action = 'ignore') {
     const homeZone = getSafeZones().find(z => z.id === current.zoneId);
     if (homeZone && Array.isArray(homeZone.drops)) homeZone.drops.push(current.itemId);
   }
-  // 必須真的拾取／裝備才算有效搜刮。忽略回池的物資不能無限刷 EXP。
-  if (current.growthCredit && item && (action === 'take' || action === 'equip')) grantSearchGrowth(player);
+  // EXP 已在搜到這件物品時發放；此處只處理物品歸屬，避免二次發放。
   renderLootChoice();
   updateUI();
 }
@@ -2575,6 +2579,22 @@ function triggerGameOver(isWin, reasonText) {
   if (modal) modal.classList.remove("hidden");
 }
 
+// V19.45：只有玩家實際遭敵人攻擊扣血時才觸發的短促畫面震動。
+// 使用 CSS transform 的小幅位移；遵守系統「減少動態效果」偏好。
+function triggerPlayerHitShake() {
+  if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+  const frame = document.getElementById('game-screen');
+  if (!frame || frame.classList.contains('hidden')) return;
+  try {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  } catch (_) {}
+  frame.classList.remove('player-hit-shake');
+  void frame.offsetWidth;
+  frame.classList.add('player-hit-shake');
+  clearTimeout(triggerPlayerHitShake._timer);
+  triggerPlayerHitShake._timer = setTimeout(() => frame.classList.remove('player-hit-shake'), 210);
+}
+
 function updateUI() {
   if (!state.player) return;
   const p = state.player;
@@ -2611,6 +2631,14 @@ function updateUI() {
     }
   }
 
+  // V19.45：只有玩家正處在「預告封鎖」的地區才提醒，離開後立即停止排程。
+  if (typeof window !== 'undefined' && window.GameAudio?.syncZoneWarning) {
+    window.GameAudio.syncZoneWarning(
+      !state.gameOver && DEV_CONFIG.enableShrink &&
+      !state.closedZones.includes(p.zone) && state.pendingCloseZones.includes(p.zone),
+      state.roundTimeRemain
+    );
+  }
   const explorePanel = document.getElementById("explore-panel");
   const alertPill = document.getElementById("current-zone-alert-pill");
   if (explorePanel && alertPill) {

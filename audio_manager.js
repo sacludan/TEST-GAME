@@ -1,4 +1,4 @@
-/* 台灣生存戰 V19.44 — A 黑暗生存配樂 (BGM only). */
+/* 台灣生存戰 V19.45 — A 黑暗生存配樂 + 封區警報 (BGM only). */
 (function () {
   'use strict';
   const KEY = 'formosa_survival_bgm_v1';
@@ -16,6 +16,46 @@
   audio.volume = settings.volume / 100;
   let started = false;
   let suspendedByVisibility = false;
+  let alertContext = null;
+  let warningActive = false;
+  let lastWarningAt = -Infinity;
+
+  // Create / resume an AudioContext from the same real user gesture that starts BGM.
+  // Safari cannot start Web Audio later from an unattended game timer.
+  function unlockAlertAudio() {
+    if (settings.muted || settings.volume <= 0) return;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return;
+    try {
+      if (!alertContext) alertContext = new Ctor();
+      if (alertContext.state === 'suspended') {
+        const promise = alertContext.resume();
+        if (promise?.catch) promise.catch(() => {});
+      }
+    } catch (err) { console.debug('警報音目前無法啟動', err); }
+  }
+
+  function beepZoneWarning() {
+    if (!alertContext || alertContext.state !== 'running' || settings.muted || settings.volume <= 0 || document.hidden) return;
+    try {
+      const t = alertContext.currentTime;
+      // Two gentle descending alert tones, 0.35 s total; avoid shrill continuous sirens.
+      for (const [offset, freq] of [[0, 660], [0.19, 470]]) {
+        const oscillator = alertContext.createOscillator();
+        const gain = alertContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(freq, t + offset);
+        const peak = 0.17 * (settings.volume / 100);
+        gain.gain.setValueAtTime(0.0001, t + offset);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + offset + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.16);
+        oscillator.connect(gain); gain.connect(alertContext.destination);
+        oscillator.start(t + offset);
+        oscillator.stop(t + offset + 0.165);
+        oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      }
+    } catch (err) { console.debug('禁區警報音播放失敗', err); }
+  }
 
   function persist() {
     try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
@@ -48,8 +88,26 @@
   }
   const GameAudio = {
     refresh,
+    syncZoneWarning(isPending, remainSeconds = 120) {
+      const active = !!isPending;
+      if (!active) {
+        warningActive = false;
+        lastWarningAt = -Infinity;
+        return;
+      }
+      const now = performance.now();
+      const intervalMs = remainSeconds <= 30 ? 5000 : 12000;
+      if (!warningActive || now - lastWarningAt >= intervalMs) {
+        warningActive = true;
+        if (started && !settings.muted && settings.volume > 0 && !document.hidden) {
+          beepZoneWarning();
+          lastWarningAt = now;
+        }
+      }
+    },
     play() {
       started = true;
+      unlockAlertAudio();
       if (settings.muted || settings.volume === 0 || document.hidden) return;
       audio.volume = settings.volume / 100;
       // iPhone Safari only permits playback after a user gesture.
@@ -71,7 +129,10 @@
       settings.muted = !settings.muted;
       persist(); refresh();
       if (settings.muted) audio.pause();
-      else this.play();
+      else {
+        lastWarningAt = -Infinity;
+        this.play();
+      }
     },
     togglePanel() {
       document.getElementById('audio-settings-panel')?.classList.toggle('hidden');
