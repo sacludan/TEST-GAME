@@ -135,7 +135,7 @@ const GAME_CHARACTERS = {
       cd: 30,
       costSp: 25,
       combatOnly: true,
-      desc: "連續攻擊 3 次，但接下來 10 秒內攻擊力減半"
+      desc: "連續攻擊 3 次，但接下來 15 秒內攻擊力減半"
     },
     passive: {
       name: "幫我開直播",
@@ -223,7 +223,7 @@ const GAME_CHARACTERS = {
     },
     passive: {
       name: "從從容容",
-      desc: "在主動技期間，搜刮速度變 1.5 倍（僅需 2 秒）"
+      desc: "主動技隱蔽期間，每次搜刮只需 0.5 秒（玩家與 AI 都適用）"
     }
   },
 
@@ -251,7 +251,7 @@ const GAME_CHARACTERS = {
     },
     passive: {
       name: "問A答B",
-      desc: "自動閃躲下一次受到的攻擊（觸發後冷卻 20 秒）"
+      desc: "自動閃躲下一次受到的攻擊（觸發後冷卻 30 秒）"
     }
   }
 };

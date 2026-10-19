@@ -148,7 +148,7 @@ function castNonCombatActiveSkill() {
     lootMultipleItemsForPlayer(3);
   } else if (p.id === "wangshijian") {
     p.stealthRemain = 12;
-    addLog(`👻 <span class="text-sky-300 font-black">【Over my dead body】</span> 12 秒內不會被別人搜到也搜不到人，且【從從容容】使搜刮速度變 1.5 倍！`, "text-sky-300 font-bold");
+    addLog(`👻 <span class="text-sky-300 font-black">【Over my dead body】</span> 12 秒內不會被別人搜到也搜不到人，且【從從容容】讓搜刮時間縮短為 0.5 秒！`, "text-sky-300 font-bold");
   } else if (p.id === "jiangwanan") {
     p.hp = Math.min(p.maxHp, p.hp + 20);
     p.milkDefBuffRemain = 10;
@@ -171,7 +171,7 @@ function resolveCombatHit(attacker, defender, rawDamage) {
   if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
   if (defender.id === "jiangwanan" && defender.dodgeReady) {
     defender.dodgeReady = false;
-    defender.dodgeCdRemain = 20;
+    defender.dodgeCdRemain = 30;
     result.dodged = true;
     return result;
   }
@@ -322,8 +322,8 @@ function executeCombatAction(action) {
             totalDealt += applyDamageToTarget(p, ai, baseDmg, true, `三槍(第${i}發)`);
           }
         }
-        p.weakenedRemain = 10;
-        addLog(`🔫 <span class="text-purple-300 font-black">【三槍】</span> 連續攻擊 3 次共造成 <span class="text-amber-300 font-black">${totalDealt}</span> 點傷害！（接下來 10 秒攻擊力減半）`, "text-purple-300 font-bold");
+        p.weakenedRemain = 15;
+        addLog(`🔫 <span class="text-purple-300 font-black">【三槍】</span> 連續攻擊 3 次共造成 <span class="text-amber-300 font-black">${totalDealt}</span> 點傷害！（接下來 15 秒攻擊力減半）`, "text-purple-300 font-bold");
         break;
       }
       case "yazhoutongshen": {
@@ -338,7 +338,7 @@ function executeCombatAction(action) {
       }
       case "wangshijian": {
         p.stealthRemain = 12;
-        addLog(`👻 <span class="text-sky-300 font-black">【Over my dead body】</span> 進入 12 秒雙向隱蔽狀態，搜刮速度提升為 1.5 倍！`, "text-sky-300 font-bold");
+        addLog(`👻 <span class="text-sky-300 font-black">【Over my dead body】</span> 進入 12 秒雙向隱蔽狀態，搜刮時間縮短為 0.5 秒！`, "text-sky-300 font-bold");
         break;
       }
       case "jiangwanan": {

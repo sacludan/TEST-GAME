@@ -187,7 +187,7 @@ const ZONE_WARNING_COUNTS = Object.freeze({1:4, 2:4, 3:8, 4:8, 5:8, 6:7, 7:4, 8:
 const FINAL_RESTRICTION_ROUND = 9;
 const PLAYER_SEARCH_SP_COST = 8;
 const PLAYER_SEARCH_MS = 1500;
-const PLAYER_FAST_SEARCH_MS = 1000;
+const PLAYER_FAST_SEARCH_MS = 500;
 
 // ==========================================
 // 3. 角色建立與數值計算
@@ -671,7 +671,7 @@ function tickEntityTimers(entity) {
     }
   }
 
-  // 蔣晚安：每 20 秒必定閃避下一次受擊
+  // 蔣晚安：觸發必閃後 30 秒才重新準備（玩家／NPC 共用）
   if (entity.id === "jiangwanan" && !entity.dodgeReady) {
     if (entity.dodgeCdRemain > 0) {
       entity.dodgeCdRemain--;
@@ -811,7 +811,7 @@ function triggerSearch() {
   state.isSearching = true;
   const searchedZoneId = p.zone;
 
-  // 王世間隱蔽期間搜刮速度 1.5 倍
+  // 王世間隱蔽期間，玩家與 NPC 都使用 0.5 秒搜刮時間
   const totalSearchMs = (p.id === "wangshijian" && p.stealthRemain > 0) ? PLAYER_FAST_SEARCH_MS : PLAYER_SEARCH_MS;
 
   const promptText = document.getElementById("search-prompt-text");
@@ -819,7 +819,7 @@ function triggerSearch() {
   const progressBar = document.getElementById("search-progress-bar");
 
   if (promptText) {
-    promptText.textContent = (totalSearchMs === PLAYER_FAST_SEARCH_MS) ? "⚡ 從從容容 1.5x 極速搜刮中..." : "🔍 搜刮中...";
+    promptText.textContent = (totalSearchMs === PLAYER_FAST_SEARCH_MS) ? "⚡ 從從容容 0.5 秒極速搜刮中..." : "🔍 搜刮中...";
     promptText.classList.remove("hidden");
   }
   if (progressBox) progressBox.classList.remove('hidden');

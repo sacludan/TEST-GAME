@@ -91,7 +91,7 @@
     ['s-games','s-duration','s-draws'].forEach(id=>$(id).textContent='—');
     $('insight').textContent='模擬進行中，資料完成後才會顯示；不會用預估勝率冒充實際結果。';
     busy(true);progress(0,n);message('正在獨立執行模擬，你仍可操作此頁面。');
-    try {worker=new Worker('balance_worker.js?v=1');}
+    try {worker=new Worker('balance_worker.js?v=2');}
     catch(e) {worker=null;busy(false);message('無法啟動 Worker：請透過網站或本機 HTTP 伺服器開啟 balance.html，避免使用 file://。'+e.message,true);return;}
     const w=worker;
     w.onmessage=({data})=>{

@@ -8,6 +8,7 @@ const AI_MAX_BAG_SIZE = 6;
 // 每位 AI 獨立行動間隔（秒），和玩家一致為 1.5 秒。
 const AI_ACTION_COOLDOWN_SEC = 1.5;
 const AI_SEARCH_DURATION_SEC = 1.5;
+const AI_FAST_SEARCH_DURATION_SEC = 0.5; // 王世間隱蔽期間與玩家一致
 const AI_SEARCH_SP_COST = 8;
 const AI_MOVE_SP_COST = 5;
 const AI_PASSIVE_SP_REGEN_PER_SEC = 2;
@@ -17,6 +18,8 @@ const AI_REST_TARGET_RATIO = 0.52;
 // 兩種難度共用血量、裝備、搜刮、CD 與禁區規則；只改決策品質與個性。
 function aiIsHard() { return DEV_CONFIG.aiDifficulty === "hard"; }
 function aiLivingThreats(ai, zoneId = ai.zone) {
+  // 王世間隱蔽期間雙向不遭遇：不能攻擊，也不能因抽到遭遇而浪費這次快速搜刮。
+  if ((ai.stealthRemain || 0) > 0) return [];
   const rivals = (state.ais || []).filter(a => a && a !== ai && a.alive && a.zone === zoneId && (a.stealthRemain || 0) <= 0);
   if (state.player && state.player.alive && state.player.zone === zoneId && (state.player.stealthRemain || 0) <= 0) {
     rivals.push(state.player);
@@ -1000,7 +1003,11 @@ function aiTryUseNonCombatSkill(ai) {
 
   if (ai.id === "wangshijian") {
     const nearbyThreat = aiLivingThreats(ai).length > 0;
-    if (ai.hp > ai.maxHp * 0.72 && !nearbyThreat) return false;
+    // 隱蔽能加速搜刮：有足夠體力和可搜刮的「公開地圖類型」時，AI 也會主動使用。
+    // 只根據地圖公開的掉落列表決策，不偷看有限的實際剩餘物資池。
+    const hasSearchOpportunity = ai.sp >= cost + AI_SEARCH_SP_COST * 2 &&
+      !!MAPS_DATA.zones.find(z => z.id === ai.zone)?.drops?.length;
+    if (ai.hp > ai.maxHp * 0.72 && !nearbyThreat && !hasSearchOpportunity) return false;
     ai.sp -= cost;
     ai.stealthRemain = 12;
     ai.lastAIAction = `發動${skill.name}`;
@@ -1096,7 +1103,7 @@ function aiUseCombatSkill(attacker, defender) {
       for (let i = 0; i < 3 && defender.hp > 0 && attacker.hp > 0; i++) {
         damage += aiSkillDamage(attacker, defender, 1);
       }
-      attacker.weakenedRemain = 10;
+      attacker.weakenedRemain = 15;
       break;
     case "yazhoutongshen":
       attacker.reflectRemain = 3;
@@ -1228,7 +1235,7 @@ function runAIBrain() {
       aiStopRest(ai);
     }
 
-    // 搜刮需等足 1.5 秒（500ms AI 時脈）；已封區時取消，避免在禁區偷撿。
+    // 普通搜刮等 1.5 秒；王世間隱蔽期間等 0.5 秒（500ms AI 時脈）。
     if (ai.aiSearchingUntilSec != null) {
       if (state.closedZones.includes(ai.zone)) {
         ai.aiSearchingUntilSec = null;
@@ -1253,7 +1260,10 @@ function runAIBrain() {
             if (ai.aiSeekingHealing) ai.aiRecoveryMisses = (ai.aiRecoveryMisses || 0) + 1;
           }
         }
-        return;
+        // 快速搜刮完成後允許 AI 立即規劃下一次行動；否則在 0.5s 時脈下
+        // 每次搜刮仍會白等一拍，使「0.5 秒」無法真正發揮效果。
+        // 不影響普通 NPC 1.5 秒搜刮或其他動作的原始行動間隔。
+        if (!(ai.id === "wangshijian" && ai.stealthRemain > 0)) return;
       }
     }
     if (ai.stunRemain > 0 || !aiReadyForAction(ai)) return;
@@ -1354,9 +1364,11 @@ function runAIBrain() {
     if (seekTarget && moveAIToSafeZone(ai, targetZone)) { aiCommitAction(ai); return; }
     if (viableDrop && ai.sp >= AI_SEARCH_SP_COST) {
       ai.sp -= AI_SEARCH_SP_COST;
-      ai.aiSearchingUntilSec = state.aiTimeSec + AI_SEARCH_DURATION_SEC;
-      aiCommitAction(ai);
-      ai.lastAIAction = "搜刮中";
+      const fastSearch = ai.id === "wangshijian" && ai.stealthRemain > 0;
+      const searchDuration = fastSearch ? AI_FAST_SEARCH_DURATION_SEC : AI_SEARCH_DURATION_SEC;
+      ai.aiSearchingUntilSec = state.aiTimeSec + searchDuration;
+      aiCommitAction(ai, searchDuration);
+      ai.lastAIAction = fastSearch ? "從從容容（0.5秒搜刮）" : "搜刮中";
       return;
     }
     if (moveAIToSafeZone(ai, targetZone)) { aiCommitAction(ai); return; }
