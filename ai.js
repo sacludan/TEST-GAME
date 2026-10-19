@@ -1039,13 +1039,14 @@ function aiTryUseNonCombatSkill(ai) {
   if (ai.sp < cost) return false;
 
   if (ai.id === "zhugouliang") {
-    // 回到先前的 AI 施放方式：只在同區可見其他角色且沒有重複開秀時施放。
-    // 歌廳秀會消耗一次正常 AI 行動，不再免費施放。
-    if (!aiLivingThreats(ai).length || zoneSongShowRemaining(ai.zone) > 0) return false;
+    // 不占 NPC 正常行動；只根據公開地圖與自身 SP 評估，不偷看敵人位置。
+    const localZone = MAPS_DATA.zones.find(z => z.id === ai.zone);
+    if (state.closedZones.includes(ai.zone) || !localZone?.drops?.length ||
+        ai.sp < cost + AI_SEARCH_SP_COST || zoneSongShowRemaining(ai.zone) > 0) return false;
     ai.sp -= cost;
-    ai.skillCdRemain = skill.cd || 30;
+    ai.skillCdRemain = skill.cd || 70;
     startZoneSongShow(ai);
-    ai.lastAIAction = `施放${skill.name}（本區60秒搜刮干擾）`;
+    ai.lastAIAction = `施放${skill.name}（本區45秒搜刮干擾）`;
     return true;
   }
 
@@ -1133,6 +1134,7 @@ function aiUseCombatSkill(attacker, defender) {
   const skill = attacker && attacker.skill;
   if (!attacker || !defender || !skill || !attacker.alive || !defender.alive) return false;
   if (attacker.skillCdRemain > 0 || attacker.stunRemain > 0) return false;
+  if (attacker.id === "zhugouliang") return false; // 歌廳秀免費施放，NPC 此次遇敵仍可攻擊。
   const cost = Number(skill.costSp ?? skill.sp) || 20;
   if (attacker.sp < cost || (attacker.id === "wangshijian" && attacker.stealthRemain > 0)) return false;
   if (attacker.id === "hanguoyu" &&
@@ -1150,11 +1152,8 @@ function aiUseCombatSkill(attacker, defender) {
   const hpMissing = 1 - hpRatio;
   let damage = 0;
   switch (attacker.id) {
-    case "zhugouliang":
-      startZoneSongShow(attacker);
-      break;
     case "kewenzhe":
-      damage = aiSkillDamage(attacker, defender, 1.5 + hpMissing * 0.5);
+      damage = aiSkillDamage(attacker, defender, 1 + hpMissing);
       break;
     case "laixiangde":
       damage = aiSkillDamage(attacker, defender, 1);
@@ -1176,6 +1175,7 @@ function aiUseCombatSkill(attacker, defender) {
       break;
     case "yazhoutongshen":
       attacker.reflectRemain = 8;
+      attacker.reflectCharges = 2;
       break;
     case "chaoge":
       damage = aiSkillDamage(attacker, defender, 1.5);
@@ -1312,6 +1312,9 @@ function runAIBrain() {
       aiStopRest(ai);
     }
 
+    // 無行動成本的歌廳秀：不會延後正在搜尋／下一次行動。
+    if (ai.id === "zhugouliang") aiTryUseNonCombatSkill(ai);
+
     // 普通搜刮等 1.5 秒；王世間隱蔽期間等 0.5 秒（500ms AI 時脈）。
     if (ai.aiSearchingUntilSec != null) {
       if (state.closedZones.includes(ai.zone)) {
@@ -1381,7 +1384,7 @@ function runAIBrain() {
       if (aiUseHPFood(ai)) { aiCommitAction(ai); return; }
       if (aiStartRest(ai)) return;
     }
-    if (aiTryUseNonCombatSkill(ai)) { aiCommitAction(ai); return; }
+    if (ai.id !== "zhugouliang" && aiTryUseNonCombatSkill(ai)) { aiCommitAction(ai); return; }
 
     // 逃離戰鬥後先找能補 HP 的道具，不會一逃走就繼續死追頂級裝備。
     if (ai.aiSeekingHealing) {

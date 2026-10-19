@@ -100,6 +100,11 @@ function triggerPlayerSkillButton(e) {
   if (e) e.stopPropagation();
   if (state.gameOver || !state.player) return;
 
+  if (state.player.id === "zhugouliang") {
+    castNonCombatActiveSkill();
+    if (state.inCombat) updateCombatUI();
+    return;
+  }
   if (state.inCombat) {
     executeCombatAction("skill");
   } else {
@@ -168,7 +173,7 @@ function castNonCombatActiveSkill() {
 
   if (p.id === "zhugouliang") {
     startZoneSongShow(p);
-    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
+    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 45 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
   } else if (p.id === "hanguoyu") {
     addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 韓國魚發動技能，一次連摸 3 件物資！`, "text-amber-300 font-bold");
     lootMultipleItemsForPlayer(3, 'all');
@@ -180,7 +185,8 @@ function castNonCombatActiveSkill() {
     addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 所在區域全體恢復最多 30 HP（包含敵人），${healed.healedCharacters} 人實際恢復共 ${healed.totalHealed} HP！`, "text-emerald-300 font-bold");
   } else if (p.id === "yazhoutongshen") {
     p.reflectRemain = 8;
-    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，每次受擊均反彈原始傷害的 100%，無次數上限！`, "text-amber-300 font-bold");
+    p.reflectCharges = 2;
+    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，最多反彈 2 次原始傷害的 100%（次數用完仍減傷）！`, "text-amber-300 font-bold");
   }
 
   updateUI();
@@ -207,12 +213,13 @@ function resolveCombatHit(attacker, defender, rawDamage) {
   }
   // 歌廳秀已改為區域搜刮減速，不再定身或增加受傷傷害。
   const rawHit = Math.max(6, Math.round(rawDamage));
-  // 亞洲桶神：8 秒內承受攻擊傷害 -75%，每次被命中均反彈減傷前的原始傷害。
+  // 亞洲桶神：8 秒內承受攻擊傷害 -75%；只在前兩次有效命中時反彈原始傷害。
   const shielding = defender.reflectRemain > 0;
   const damage = shielding ? Math.max(1, Math.round(rawHit * 0.25)) : rawHit;
   defender.hp = Math.max(0, defender.hp - damage);
   result.damage = damage;
-  if (shielding) {
+  if (shielding && (defender.reflectCharges || 0) > 0) {
+    defender.reflectCharges--;
     attacker.hp = Math.max(0, attacker.hp - rawHit);
     result.reflected = rawHit;
   }
@@ -295,8 +302,13 @@ function executeCombatAction(action) {
     }
   }
 
-  // 3. 選擇【技能】
+  // 3. 選擇【技能】；豬勾亮開秀不佔此次戰鬥行動。
   if (action === "skill") {
+    if (p.id === "zhugouliang") {
+      castNonCombatActiveSkill();
+      if (state.inCombat) updateCombatUI();
+      return;
+    }
     if (!canUsePlayerSkill(p)) return;
     combatActionBusy = true;
 
@@ -309,11 +321,6 @@ function executeCombatAction(action) {
     const targetHpBeforeSkill = ai.hp;
 
     switch (p.id) {
-      case "zhugouliang": {
-        startZoneSongShow(p);
-        addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
-        break;
-      }
       case "hanguoyu": {
         addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 一次搜出 3 個道具！`, "text-amber-300 font-bold");
         lootMultipleItemsForPlayer(3, 'all');
@@ -321,7 +328,7 @@ function executeCombatAction(action) {
       }
       case "kewenzhe": {
         const missingRatio = 1 - (p.hp / p.maxHp);
-        const mult = +(1.5 + 0.5 * missingRatio).toFixed(2);
+        const mult = +(1 + missingRatio).toFixed(2);
         const dmg = applyDamageToTarget(p, ai, baseDmg * mult, true, "飛輪衝撞");
         addLog(`🚲 <span class="text-purple-300 font-black">【飛輪衝撞】</span> 依當前血量觸發 ${mult} 倍威力，對 ${ai.name} 造成 <span class="text-amber-300 font-black">${dmg}</span> 點傷害！`, "text-purple-300 font-bold");
         break;
@@ -361,7 +368,8 @@ function executeCombatAction(action) {
       }
       case "yazhoutongshen": {
         p.reflectRemain = 8;
-            addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，每次受擊均反彈原始傷害的 100%，無次數上限！`, "text-amber-300 font-bold");
+    p.reflectCharges = 2;
+            addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，最多反彈 2 次原始傷害的 100%（次數用完仍減傷）！`, "text-amber-300 font-bold");
         break;
       }
       case "chaoge": {

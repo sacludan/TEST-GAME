@@ -20,10 +20,10 @@ const GAME_CHARACTERS = {
     skill: {
       name: "歌廳秀",
       icon: "🎤",
-      cd: 30,
+      cd: 70,
       costSp: 25,
       combatOnly: false,
-      desc: "在目前地區舉辦歌廳秀，持續 60 秒；除了自己，區域內其他角色搜刮多花 1 秒。離開該地區不受影響"
+      desc: "不消耗行動（仍需 25 體力），在本區開秀 45 秒：其他角色搜刮 +1 秒；冷卻 70 秒，離區不受影響"
     },
     passive: {
       name: "豬大哥沒死",
@@ -79,7 +79,7 @@ const GAME_CHARACTERS = {
       cd: 20,
       costSp: 20,
       combatOnly: true,
-      desc: "根據當前生命值比例造成 1.5～2 倍傷害（血越少攻擊力越高）"
+      desc: "根據當前生命值比例造成 1～2 倍傷害（血越少攻擊力越高）"
     },
     passive: {
       name: "我不會屈服的",
@@ -163,7 +163,7 @@ const GAME_CHARACTERS = {
       cd: 25,
       costSp: 20,
       combatOnly: false,
-      desc: "8 秒內受到攻擊傷害 -75%，期間每次受擊都反彈原始傷害 100%（無次數上限）"
+      desc: "8 秒內受到攻擊傷害 -75%，期間最多反彈 2 次原始傷害 100%（反彈用完仍減傷）"
     },
     passive: {
       name: "鼎王吃到飽",

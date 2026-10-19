@@ -158,7 +158,7 @@ const state = {
   aiTimeSec: 0,
   pendingCloseZones: [],
   activeZones: [],
-  // 歌廳秀留在施放時的區域（以遊戲秒數計 60 秒），離區無額外延遲。
+  // 歌廳秀留在施放時的區域（以遊戲秒數計 45 秒），離區無額外延遲。
   zoneSongShows: Object.create(null),
   inCombat: false,
   nextPlayerAmbushSec: 0,
@@ -191,7 +191,7 @@ const FINAL_RESTRICTION_ROUND = 9;
 const PLAYER_SEARCH_SP_COST = 8;
 const PLAYER_SEARCH_MS = 1500;
 const PLAYER_FAST_SEARCH_MS = 500;
-const SONG_SHOW_DURATION_SEC = 60;
+const SONG_SHOW_DURATION_SEC = 45;
 const SONG_SHOW_SEARCH_PENALTY_SEC = 1;
 
 function startZoneSongShow(caster) {
@@ -265,6 +265,7 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     stunRemain: 0,
     stealthRemain: 0,
     reflectRemain: 0,
+    reflectCharges: 0,
     milkDefBuffRemain: 0,
     weakenedRemain: 0,
     dodgeReady: (tpl.id === "jiangwanan" && balanceHasPassive(tpl)), // 平衡測試關閉被動時不可殘留必閃狀態
@@ -1240,6 +1241,12 @@ function triggerPlayerSkillButton(e) {
   if (e) e.stopPropagation();
   if (state.gameOver || !state.player) return;
   if (state.player.isResting) stopPlayerRest("你停止休息，準備施放技能。");
+  // 歌廳秀為免費地區技：即使正在遭遇，也不佔本次攻擊／無視機會。
+  if (state.player.id === "zhugouliang") {
+    if (typeof castNonCombatActiveSkill === "function") castNonCombatActiveSkill();
+    if (state.inCombat && typeof updateCombatUI === "function") updateCombatUI();
+    return;
+  }
   if (state.inCombat) {
     if (typeof executeCombatAction === "function") executeCombatAction("skill");
   } else if (typeof castNonCombatActiveSkill === "function") {
@@ -2685,7 +2692,7 @@ function updateUI() {
       bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_HP_REGEN_PER_SEC} HP／秒、+${PASSIVE_SP_REGEN_PER_SEC + REST_SP_REGEN_PER_SEC} SP／秒)</span>`);
     }
     if (p.reflectRemain > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／無限反彈</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／反彈剩${p.reflectCharges || 0}次</span>`);
     }
     const showLeft = zoneSongShowRemaining(p.zone);
     if (showLeft > 0) {
