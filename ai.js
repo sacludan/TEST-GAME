@@ -14,6 +14,10 @@ const AI_MOVE_SP_COST = 5;
 const AI_PASSIVE_SP_REGEN_PER_SEC = 2;
 const AI_REST_SP_REGEN_PER_SEC = 6;
 const AI_REST_TARGET_RATIO = 0.52;
+// NPC 避戰容忍度：預估對手的戰鬥優勢達 30% 才因戰力差距撤退。
+const AI_RETREAT_STRENGTH_RATIO = 1.30;
+// 即使對手沒有比較強，自身殘血時仍可優先撤退或補血。
+const AI_RETREAT_LOW_HP_RATIO = 0.35;
 
 // 兩種難度共用血量、裝備、搜刮、CD 與禁區規則；只改決策品質與個性。
 function aiIsHard() { return DEV_CONFIG.aiDifficulty === "hard"; }
@@ -37,7 +41,7 @@ function aiCombatOdds(ai, other) {
   const enemyTurns = Math.ceil(Math.max(1, ai.hp) / theirDamage);
   const gearAdv = (getTotalAtk(ai) - getTotalAtk(other)) * 0.35 + (getTotalDef(ai) - getTotalDef(other)) * 0.65;
   // 閃避、反彈和免死會影響交戰風險，不只看血量。
-  const passiveDanger = (other.dodgeReady ? 0.65 : 0) + ((other.reflectRemain || 0) > 0 ? 2.0 : 0) +
+  const passiveDanger = (other.id === "jiangwanan" && balanceHasPassive(other) && other.dodgeReady ? 0.65 : 0) + ((other.reflectRemain || 0) > 0 ? 2.0 : 0) +
     (other.id === "zhugouliang" && balanceHasPassive(other) && !other.pigReviveUsed ? 0.5 : 0);
   return (enemyTurns - myTurns) + gearAdv * 0.035 - passiveDanger;
 }
@@ -947,15 +951,33 @@ function aiFindHealingZone(ai) {
   return pool[0];
 }
 
+// 比較「目前血量下預期幾次普通攻擊能分出勝負」，而非用固定的回合差距判斷。
+// 1.30 代表：我方擊倒敵人所需的預估攻擊次數，比敵人擊倒我方多 30%。
+// 包含雙方當前 HP、攻擊、裝備、防禦、熟練度與爆擊期望值；
+// 已準備好的真實必閃，也要算入敵方可承受的攻擊次數。
+function aiEnemyStrengthRatio(ai, enemy) {
+  const outgoing = Math.max(1, aiDamageEstimate(ai, enemy));
+  const incoming = Math.max(1, aiDamageEstimate(enemy, ai));
+  let attacksToDefeatEnemy = Math.max(1, enemy.hp) / outgoing;
+  const attacksToDefeatMe = Math.max(1, ai.hp) / incoming;
+  if (enemy.id === "jiangwanan" && balanceHasPassive(enemy) && enemy.dodgeReady) {
+    attacksToDefeatEnemy += 1; // 準備好的必閃會令首次普通攻擊無效
+  }
+  return attacksToDefeatEnemy / attacksToDefeatMe;
+}
+
 function aiShouldAvoidEncounter(ai, enemy) {
-  if (!enemy || !enemy.alive) return false;
-  // 能在這一擊擊倒對手時，應當爭取勝利，而不是無謂逃走。
-  if (aiDamageEstimate(ai, enemy) >= enemy.hp) return false;
-  const odds = aiCombatOdds(ai, enemy);
+  if (!enemy || !enemy.alive || !ai || !ai.alive) return false;
+  // 本次攻擊就能擊倒敵人時，仍要把握機會，不因自身殘血浪費出手。
+  if (aiDamageEstimate(ai, enemy) >= enemy.hp &&
+      !(enemy.id === "jiangwanan" && balanceHasPassive(enemy) && enemy.dodgeReady)) return false;
   const incoming = aiDamageEstimate(enemy, ai);
+  const hpRatio = ai.hp / Math.max(1, ai.maxHp);
+  const lowHealth = hpRatio <= AI_RETREAT_LOW_HP_RATIO;
+  // 即使敵方平均戰力較低，也應避開兩擊內可能死亡的局面。
   const imminentDanger = ai.hp <= incoming * (aiIsHard() ? 2.0 : 1.5);
-  const heavilyOutmatched = odds < (aiIsHard() ? -1.5 : -2.0);
-  return imminentDanger || heavilyOutmatched;
+  const heavilyOutmatched = aiEnemyStrengthRatio(ai, enemy) >= AI_RETREAT_STRENGTH_RATIO;
+  return lowHealth || imminentDanger || heavilyOutmatched;
 }
 
 function aiTryAvoidSearchEncounter(ai, enemy) {

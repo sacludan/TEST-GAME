@@ -244,7 +244,7 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     radarCooldownRemain: 0,
     milkDefBuffRemain: 0,
     weakenedRemain: 0,
-    dodgeReady: (tpl.id === "jiangwanan"),
+    dodgeReady: (tpl.id === "jiangwanan" && balanceHasPassive(tpl)), // 平衡測試關閉被動時不可殘留必閃狀態
     dodgeCdRemain: 0,
     hitTakenCount: 0,
     gongdeStacks: 0,
