@@ -382,18 +382,12 @@ function preloadTacticalMap() {
     const image = new Image();
     image.decoding = 'async';
     image.fetchPriority = 'high';
-    image.onload = async () => {
-      try {
-        if (typeof image.decode === 'function') await image.decode();
+    image.onload = () => {
+      // 互動地圖同樣不等待可能卡住的 Safari decode()；下載成功就保留 Image 實例。
+      if (image.naturalWidth > 0) {
         tacticalMapPreloadedImage = image;
         resolve(true);
-      } catch (err) {
-        // 極少數 Safari decode() 失敗但圖片已完成載入時仍允許顯示。
-        if (image.naturalWidth > 0) {
-          tacticalMapPreloadedImage = image;
-          resolve(true);
-        } else reject(err);
-      }
+      } else reject(new Error('互動地圖無法讀取'));
     };
     image.onerror = () => reject(new Error('地圖圖片載入失敗'));
     image.src = TACTICAL_MAP_URL;
@@ -404,14 +398,20 @@ function preloadTacticalMap() {
   return tacticalMapPreloadPromise;
 }
 
+// V19.34：恢復場景與道具的完整快速預載，下載完成即允許排入下一張。
+// Safari 的 Image.decode() 偶爾會被延後或卡住；不可把背景解碼當作網路載入成功的門檻。
 let zoneScenePreloadPromise = null;
 const zoneSceneImageCache = new Map();
+const zoneSceneInFlight = new Map();
+const zoneSceneFailures = new Map();
 
 function updateZoneScenePreloadStatus(loaded, total, failed = false) {
   const status = document.getElementById('scene-preload-status');
+  const failures = [...zoneSceneFailures.entries()];
+  const names = failures.slice(0, 4).map(([id, reason]) => `${id}（${reason}）`).join('、');
   if (status) {
     status.textContent = failed
-      ? `⚠️ 場景圖片有 ${total - loaded} 張載入失敗，按開始遊戲可重試` 
+      ? `⚠️ ${failures.length || total - loaded} 張場景載入失敗${names ? '：' + names : ''}，按開始遊戲可重試`
       : loaded >= total
         ? `✅ ${total} 張場景背景已預載完成`
         : `🖼️ 場景背景預載中 ${loaded}/${total}`;
@@ -426,36 +426,45 @@ function updateZoneScenePreloadStatus(loaded, total, failed = false) {
 
 function loadAndDecodeZoneScene(zoneId, url) {
   if (zoneSceneImageCache.has(zoneId)) return Promise.resolve(true);
-  return new Promise(resolve => {
-    const image = new Image();
-    image.decoding = 'async';
-    image.fetchPriority = 'low';
-    let done = false;
-    // 防止極端弱網路造成載入永遠停在某一張。
-    const timeout = window.setTimeout(() => finish(false), 20000);
-    function finish(ok) {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timeout);
-      image.onload = image.onerror = null;
-      if (ok && image.naturalWidth > 0) {
-        zoneSceneImageCache.set(zoneId, image);
-        resolve(true);
-      } else {
-        resolve(false);
+  if (zoneSceneInFlight.has(zoneId)) return zoneSceneInFlight.get(zoneId);
+  function loadOnce(attempt) {
+    return new Promise(resolve => {
+      const image = new Image();
+      image.decoding = 'async';
+      // 原先的 low 可能讓瀏覽器優先載入其他資源，場景被長時間延後。
+      image.fetchPriority = 'auto';
+      let done = false;
+      const timeout = window.setTimeout(() => finish(false, '逾時'), 18000);
+      function finish(ok, reason = '') {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timeout);
+        image.onload = image.onerror = null;
+        if (ok && image.naturalWidth > 0) {
+          // onload 已能確認圖片下載完成，不再 await decode() 阻塞四條載入佇列。
+          // Image 實例繼續留在快取，切換地圖時沿用同一個網址與瀏覽器圖片快取。
+          zoneSceneImageCache.set(zoneId, image);
+          zoneSceneFailures.delete(zoneId);
+          resolve(true);
+        } else {
+          if (attempt === 1) {
+            zoneSceneFailures.set(zoneId, reason || '圖片無法讀取');
+            console.warn(`[場景預載] ${zoneId} 失敗：${reason || '無法讀取'} (${url})`);
+          }
+          resolve(false);
+        }
       }
-    }
-    image.onload = async () => {
-      try {
-        if (typeof image.decode === 'function') await image.decode();
-      } catch (_) {
-        // 部分 Safari decode() 會失敗，已完成載入的圖片仍可直接顯示。
-      }
-      finish(image.naturalWidth > 0);
-    };
-    image.onerror = () => finish(false);
-    image.src = url;
+      image.onload = () => finish(true);
+      image.onerror = () => finish(false, '下載錯誤');
+      // 僅失敗重試時避開可能的負面快取；正常載入仍用固定 URL 保留快取速度。
+      image.src = attempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=1934`;
+    });
+  }
+  const task = loadOnce(0).then(ok => ok || loadOnce(1)).finally(() => {
+    zoneSceneInFlight.delete(zoneId);
   });
+  zoneSceneInFlight.set(zoneId, task);
+  return task;
 }
 
 function preloadZoneSceneBackgrounds() {
@@ -463,6 +472,8 @@ function preloadZoneSceneBackgrounds() {
   const entries = Object.entries(ZONE_SCENE_IMAGES);
   const total = entries.length;
   const queue = entries.filter(([id]) => !zoneSceneImageCache.has(id));
+  // 重試時只清除未完成地區的舊錯誤，已完成的圖片無須重新下載。
+  for (const [id] of queue) zoneSceneFailures.delete(id);
   let cursor = 0;
   let processed = total - queue.length;
   let failures = 0;
@@ -473,19 +484,19 @@ function preloadZoneSceneBackgrounds() {
       const ok = await loadAndDecodeZoneScene(id, url);
       processed++;
       if (!ok) failures++;
-      updateZoneScenePreloadStatus(processed - failures, total);
+      updateZoneScenePreloadStatus(zoneSceneImageCache.size, total);
     }
   }
-  // 避免 iOS Safari 同時解碼多張場景導致卡頓或記憶體瞬間升高。
+  // 與原版相同的四條並行管線，但每張只等下載，不等額外強制解碼。
   zoneScenePreloadPromise = Promise.all(
     Array.from({length: Math.min(4, queue.length)}, worker)
   ).then(() => {
     const ready = failures === 0 && entries.every(([id]) => zoneSceneImageCache.has(id));
     updateZoneScenePreloadStatus(zoneSceneImageCache.size, total, !ready);
-    if (!ready) zoneScenePreloadPromise = null; // 失敗時下次點開始可重試缺圖
+    if (!ready) zoneScenePreloadPromise = null;
     return ready;
   }).catch(err => {
-    console.error('場景預載失敗', err);
+    console.error('場景預載錯誤', err);
     zoneScenePreloadPromise = null;
     updateZoneScenePreloadStatus(zoneSceneImageCache.size, total, true);
     return false;
@@ -998,43 +1009,54 @@ function getItemArtUrl(itemId) {
 
 // V19.19: 優先暖原有12張，新增30張分批背景預載，不阻塞首頁及搜刮。
 // 開始搜刮時額外優先暖該區可能掉落的圖片，減少第一次見到圖片時的空框。
+// V19.34：185 張道具圖片獨立預載，不再等待地圖或某張場景完成。
+// 預載目的是把原始檔放進瀏覽器快取，不能強迫 185 張隱藏圖片同時 decode()。
 const ITEM_ART_PRELOAD_CACHE = new Map();
+let itemArtWarmupStarted = false;
 function preloadItemArt(itemId) {
   const normalizedId = ItemRegistry.ALIAS[itemId] || itemId;
   if (!AVAILABLE_ITEM_ART.has(normalizedId)) return;
   if (ITEM_ART_PRELOAD_CACHE.has(normalizedId)) return;
   const image = new Image();
   image.decoding = 'async';
-  image.src = getItemArtUrl(normalizedId);
-  const ready = image.decode ? image.decode().then(() => true).catch(() => false)
-    : new Promise(resolve => {
-        image.onload = () => resolve(true);
-        image.onerror = () => resolve(false);
-      });
+  image.fetchPriority = 'low';
+  const ready = new Promise(resolve => {
+    image.onload = () => resolve(image.naturalWidth > 0);
+    image.onerror = () => {
+      // 失敗不留在預載快取；玩家實際搜刮時仍有機會重新取得。
+      ITEM_ART_PRELOAD_CACHE.delete(normalizedId);
+      resolve(false);
+    };
+  });
   ITEM_ART_PRELOAD_CACHE.set(normalizedId, { image, ready });
+  image.src = getItemArtUrl(normalizedId);
 }
-function preloadKnownItemArt() {
+function preloadKnownItemArt(sceneTask) {
+  if (itemArtWarmupStarted) return;
+  itemArtWarmupStarted = true;
+  // 先暖首頁及常見物品，但讓其他道具使用低網路優先權，不搶場景的下載通道。
   ORIGINAL_12_ITEM_ART.forEach(preloadItemArt);
-  // 地圖優先完成載入/解碼，再分批暖 60 張圖，避免同時爭搶手機解碼資源。
   const remainingItemIds = [...NEW_30_ITEM_ART, ...LATEST_30_ITEM_ART, ...EXTRA_30_ITEM_ART, ...LATEST_EXTRA_30_ITEM_ART, ...NEWEST_30_ITEM_ART, ...FINAL_23_ITEM_ART];
   let cursor = 0;
   function warmNewItemsBatch() {
-    for (let i = 0; i < 4 && cursor < remainingItemIds.length; i++, cursor++) {
+    for (let i = 0; i < 5 && cursor < remainingItemIds.length; i++, cursor++) {
       preloadItemArt(remainingItemIds[cursor]);
     }
-    if (cursor < remainingItemIds.length) window.setTimeout(warmNewItemsBatch, 200);
+    if (cursor < remainingItemIds.length) window.setTimeout(warmNewItemsBatch, 120);
   }
-  window.setTimeout(warmNewItemsBatch, 350);
+  // 場景正常很快時先讓場景完成；即使某張失敗或卡住，道具最遲 1.5 秒後照常開始。
+  Promise.race([Promise.resolve(sceneTask), new Promise(resolve => window.setTimeout(resolve, 1500))])
+    .then(() => window.setTimeout(warmNewItemsBatch, 100));
 }
 function preloadZoneItemArt(zoneId) {
   const zone = getSafeCurrentZone(zoneId);
   if (!zone || !Array.isArray(zone.drops)) return;
-  const ids = new Set(zone.drops);
-  for (const id of ids) preloadItemArt(id);
+  for (const id of new Set(zone.drops)) preloadItemArt(id);
 }
-// 先預載、解碼地圖，再開始批次載入道具；頁面進大廳時即啟動。
 function beginBackgroundItemPreload() {
-  Promise.allSettled([preloadTacticalMap(), preloadZoneSceneBackgrounds()]).then(preloadKnownItemArt, preloadKnownItemArt);
+  const scenes = preloadZoneSceneBackgrounds();
+  preloadKnownItemArt(scenes);
+  preloadTacticalMap().catch(err => console.warn('互動地圖預載未完成', err));
 }
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', beginBackgroundItemPreload, { once: true });
