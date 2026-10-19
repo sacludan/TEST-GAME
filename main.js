@@ -158,6 +158,8 @@ const state = {
   aiTimeSec: 0,
   pendingCloseZones: [],
   activeZones: [],
+  // 歌廳秀留在施放時的區域（以遊戲秒數計 60 秒），離區無額外延遲。
+  zoneSongShows: Object.create(null),
   inCombat: false,
   nextPlayerAmbushSec: 0,
   isSearching: false,
@@ -188,6 +190,29 @@ const FINAL_RESTRICTION_ROUND = 9;
 const PLAYER_SEARCH_SP_COST = 8;
 const PLAYER_SEARCH_MS = 1500;
 const PLAYER_FAST_SEARCH_MS = 500;
+const SONG_SHOW_DURATION_SEC = 60;
+const SONG_SHOW_SEARCH_PENALTY_SEC = 1;
+
+function startZoneSongShow(caster) {
+  if (!caster || !caster.alive || !caster.zone) return false;
+  if (!state.zoneSongShows) state.zoneSongShows = Object.create(null);
+  state.zoneSongShows[caster.zone] = {
+    caster,
+    until: (state.aiTimeSec || 0) + SONG_SHOW_DURATION_SEC
+  };
+  return true;
+}
+
+function zoneSongShowRemaining(zoneId) {
+  const show = state.zoneSongShows?.[zoneId];
+  return show ? Math.max(0, show.until - (state.aiTimeSec || 0)) : 0;
+}
+
+function zoneSongShowSearchPenalty(entity, zoneId = entity?.zone) {
+  const show = state.zoneSongShows?.[zoneId];
+  if (!show || !entity || show.caster === entity || zoneSongShowRemaining(zoneId) <= 0) return 0;
+  return SONG_SHOW_SEARCH_PENALTY_SEC;
+}
 
 // ==========================================
 // 3. 角色建立與數值計算
@@ -240,8 +265,6 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     stealthRemain: 0,
     reflectRemain: 0,
     reflectHitsRemaining: 0,
-    radarProtectionRemain: 0,
-    radarCooldownRemain: 0,
     milkDefBuffRemain: 0,
     weakenedRemain: 0,
     dodgeReady: (tpl.id === "jiangwanan" && balanceHasPassive(tpl)), // 平衡測試關閉被動時不可殘留必閃狀態
@@ -514,6 +537,7 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   state.nextPlayerAmbushSec = 0;
   state.isSearching = false;
   state.pendingLootQueue = [];
+  state.zoneSongShows = Object.create(null);
   const lootOverlay = document.getElementById("loot-choice-overlay");
   if (lootOverlay) lootOverlay.classList.add("hidden");
   state.gameOver = false;
@@ -664,8 +688,6 @@ function tickEntityTimers(entity) {
   if (entity.skillCdRemain > 0) entity.skillCdRemain--;
   if (entity.stunRemain > 0) entity.stunRemain--;
   if (entity.reflectRemain > 0) entity.reflectRemain--;
-  if (entity.radarProtectionRemain > 0) entity.radarProtectionRemain--;
-  if (entity.radarCooldownRemain > 0) entity.radarCooldownRemain--;
   if (entity.milkDefBuffRemain > 0) entity.milkDefBuffRemain--;
   if (entity.weakenedRemain > 0) entity.weakenedRemain--;
   if (entity.guanPassiveCd > 0) entity.guanPassiveCd--;
@@ -823,14 +845,18 @@ function triggerSearch() {
   const searchedZoneId = p.zone;
 
   // 王世間隱蔽期間，玩家與 NPC 都使用 0.5 秒搜刮時間
-  const totalSearchMs = (p.id === "wangshijian" && p.stealthRemain > 0) ? PLAYER_FAST_SEARCH_MS : PLAYER_SEARCH_MS;
+  const baseSearchMs = (p.id === "wangshijian" && p.stealthRemain > 0) ? PLAYER_FAST_SEARCH_MS : PLAYER_SEARCH_MS;
+  const songShowPenaltyMs = zoneSongShowSearchPenalty(p, searchedZoneId) * 1000;
+  const totalSearchMs = baseSearchMs + songShowPenaltyMs;
 
   const promptText = document.getElementById("search-prompt-text");
   const progressBox = document.getElementById("search-progress-box");
   const progressBar = document.getElementById("search-progress-bar");
 
   if (promptText) {
-    promptText.textContent = (totalSearchMs === PLAYER_FAST_SEARCH_MS) ? "⚡ 從從容容 0.5 秒極速搜刮中..." : "🔍 搜刮中...";
+    promptText.textContent = songShowPenaltyMs
+      ? `🎤 歌廳秀干擾！搜刮時間 ${totalSearchMs / 1000} 秒（+1秒）...`
+      : (totalSearchMs === PLAYER_FAST_SEARCH_MS ? "⚡ 從從容容 0.5 秒極速搜刮中..." : "🔍 搜刮中...");
     promptText.classList.remove("hidden");
   }
   if (progressBox) progressBox.classList.remove('hidden');
@@ -897,7 +923,8 @@ function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
       pool.push(itemId);
       continue;
     }
-    state.pendingLootQueue.push({ itemId, zoneId: zoneObj.id, growthCredit: growthCredit && found === 0 });
+    // growthCredit === 'all' 用於韓國魚三連搜：每件真正撿取的道具都給搜刮 EXP。
+    state.pendingLootQueue.push({ itemId, zoneId: zoneObj.id, growthCredit: growthCredit === 'all' || (growthCredit && found === 0) });
     found++;
   }
   if (!found) {
@@ -1191,31 +1218,8 @@ function triggerPlayerSkillButton(e) {
   }
 }
 
-// 當有人進入韓國魚已在的區域時，觸發雙向降低遇敵率（真人及 AI 共用）。
-function checkHanguoyuRadar(movingEntity, targetZoneId) {
-  const candidates = [state.player, ...(state.ais || [])];
-  for (const h of candidates) {
-    if (!h || !h.alive || h === movingEntity || h.id !== 'hanguoyu' ||
-        !balanceHasPassive(h) || h.zone !== targetZoneId || h.radarCooldownRemain > 0) continue;
-    h.radarProtectionRemain = 10;
-    h.radarCooldownRemain = 30;
-    if (h.isPlayer) {
-      addLog(`🚨 【禿子跟著月亮走】雷達感應！有其他角色進入了【${getSafeCurrentZone(targetZoneId).name}】！10 秒內搜刮遇敵率降低至 35%。`, 'text-rose-400 font-black');
-      const banner = document.getElementById('radar-warning-banner');
-      if (banner) {
-        banner.classList.remove('hidden');
-        setTimeout(() => banner.classList.add('hidden'), 3500);
-      }
-    }
-  }
-}
-// 韓國魚雷達生效期間，不論誰先搜刮、誰被搜到，都套用相同遇敵機率。
-function getSearchEncounterChance(searcher, target) {
-  const radarActive = [searcher, target].some(e =>
-    e && e.alive && e.id === 'hanguoyu' && balanceHasPassive(e) &&
-    (e.radarProtectionRemain || 0) > 0);
-  return radarActive ? 0.35 : 0.65;
-}
+// 韓國魚【愛情摩天輪】已取代舊雷達，所有角色恢復普通 65% 遇敵率。
+function getSearchEncounterChance(searcher, target) { return 0.65; }
 
 // ==========================================
 // 8. 6格裝備欄、背包操作與拖曳系統
@@ -2279,8 +2283,6 @@ function moveZone(targetZoneId) {
 
   p.sp -= 5;
   p.zone = targetZoneId;
-  // 玩家進入已有韓國魚 NPC 的區域，同樣觸發其警戒被動。
-  checkHanguoyuRadar(p, targetZoneId);
   const targetZone = getSafeCurrentZone(targetZoneId);
   addLog(`🏃 移動到了【${targetZone.name}】。`, "text-indigo-300");
 
@@ -2654,7 +2656,11 @@ function updateUI() {
       bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_SP_REGEN_PER_SEC}/秒)</span>`);
     }
     if (p.reflectRemain > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷 ${p.reflectRemain}s／反彈剩 ${p.reflectHitsRemaining || 0} 次</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／反彈剩 ${p.reflectHitsRemaining || 0} 次</span>`);
+    }
+    const showLeft = zoneSongShowRemaining(p.zone);
+    if (showLeft > 0) {
+      bList.push(`<span class="px-1.5 py-0.5 bg-fuchsia-950 border border-fuchsia-400 text-fuchsia-200 rounded text-[9px] font-bold">🎤 歌廳秀 ${Math.ceil(showLeft)}s${zoneSongShowSearchPenalty(p) ? '・搜刮+1秒' : ''}</span>`);
     }
     if (p.weakenedRemain > 0) {
       bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-600 text-rose-300 rounded text-[9px] font-bold">💤 虛弱 ${p.weakenedRemain}s</span>`);

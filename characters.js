@@ -22,8 +22,8 @@ const GAME_CHARACTERS = {
       icon: "🎤",
       cd: 30,
       costSp: 25,
-      combatOnly: true,
-      desc: "定身對手 6 秒；對手定身期間受到的攻擊傷害 +20%"
+      combatOnly: false,
+      desc: "在目前地區舉辦歌廳秀，持續 60 秒；除了自己，區域內其他角色搜刮多花 1 秒。離開該地區不受影響"
     },
     passive: {
       name: "豬大哥沒死",
@@ -54,8 +54,8 @@ const GAME_CHARACTERS = {
       desc: "一次搜刮直接爆出 3 個道具"
     },
     passive: {
-      name: "禿子跟著月亮走",
-      desc: "有人進入你所在區域時警告；觸發後 10 秒內雙向搜刮遇敵率從 65% 降到 35%（冷卻 30 秒，玩家與 NPC 通用）"
+      name: "愛情摩天輪",
+      desc: "搜刮成功取得物品與合成物品時，角色經驗值變成 2 倍（包括【發大財！】取得的物品）"
     }
   },
 
@@ -163,7 +163,7 @@ const GAME_CHARACTERS = {
       cd: 25,
       costSp: 20,
       combatOnly: false,
-      desc: "接下來 8 秒受到攻擊傷害 -25%，最多反彈 2 次受到的原始傷害（100%）"
+      desc: "接下來 8 秒受到攻擊傷害 -75%，最多反彈 2 次受到的原始傷害（100%）"
     },
     passive: {
       name: "鼎王吃到飽",

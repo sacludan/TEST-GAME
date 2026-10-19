@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=64', 'game_config.js',
-  'growth.js', 'ai.js?v=122', 'combat.js?v=121', 'main.js?v=135'
+  'recipes.js', 'maps.js', 'characters.js?v=65', 'game_config.js',
+  'growth.js?v=119', 'ai.js?v=123', 'combat.js?v=122', 'main.js?v=136'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -167,6 +167,7 @@ function simulate(matchNumber, seed, difficulty, rotationBlock) {
   DEV_CONFIG.enableShrink = true;
   state.timeSec = 0; state.aiTimeSec = 0; state.round = 1; state.roundTimeRemain = ZONE_ROUND_SECONDS;
   state.closedZones = []; state.temporaryClosedZones = []; state.permanentClosedZones = [];
+  state.zoneSongShows = Object.create(null);
   state.pendingCloseZones = []; state.finalStormActive = false; state.activeZones = MAPS_DATA.zones.map(zoneClone);
   state.player = null; state.ais = order.map(id => createCharacterEntity(id, false, spawnById[id]));
   state.ai = null; state.inCombat = false; state.gameOver = false;

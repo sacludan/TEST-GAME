@@ -854,7 +854,7 @@ function moveAIToSafeZone(ai, targetZone = null) {
     ai.sp -= AI_MOVE_SP_COST;
     ai.zone = nextZone.id;
     ai.lastAIAction = `前往${nextZone.name}`;
-    if (typeof checkHanguoyuRadar === "function") checkHanguoyuRadar(ai, nextZone.id);
+
     return true;
   }
   return false;
@@ -1007,6 +1007,17 @@ function aiTryUseNonCombatSkill(ai) {
   const cost = Number(skill.costSp ?? skill.sp) || 20;
   if (ai.sp < cost) return false;
 
+  if (ai.id === "zhugouliang") {
+    // 不需要搜到敵人才知道地區裡有角色；AI 的即時位置資訊沿用原本 aiLivingThreats。
+    // 不在無人區空放技能，也不在原本已經開秀的同區重複浪費施放機會。
+    if (!aiLivingThreats(ai).length || zoneSongShowRemaining(ai.zone) > 0) return false;
+    ai.sp -= cost;
+    ai.skillCdRemain = skill.cd || 30;
+    startZoneSongShow(ai);
+    ai.lastAIAction = `施放${skill.name}（本區60秒搜刮干擾）`;
+    return true;
+  }
+
   if (ai.id === "hanguoyu") {
     const published = MAPS_DATA.zones.find(z => z.id === ai.zone);
     if (!published?.drops?.length) return false;
@@ -1017,7 +1028,7 @@ function aiTryUseNonCombatSkill(ai) {
     ai.skillCdRemain = skill.cd || 35;
     let looted = 0;
     for (let i = 0; i < 3; i++) {
-      if (lootOneItemForAI(ai)) looted++;
+      if (lootOneItemForAI(ai)) { looted++; grantSearchGrowth(ai); }
     }
     ai.lastAIAction = `發動${skill.name}（搜刮${looted}件）`;
     return looted > 0;
@@ -1060,7 +1071,7 @@ function aiResolveUnitDefeat(victim, killer) {
     const dest = safe[Math.floor(Math.random() * safe.length)];
     if (dest) {
       victim.zone = dest.id;
-      if (typeof checkHanguoyuRadar === 'function') checkHanguoyuRadar(victim, dest.id);
+
     }
     victim.aiSearchingUntilSec = null;
     aiStopRest(victim);
@@ -1109,7 +1120,7 @@ function aiUseCombatSkill(attacker, defender) {
   let damage = 0;
   switch (attacker.id) {
     case "zhugouliang":
-      defender.stunRemain = Math.max(defender.stunRemain || 0, 6);
+      startZoneSongShow(attacker);
       break;
     case "kewenzhe":
       damage = aiSkillDamage(attacker, defender, 1.5 + hpMissing * 0.5);
@@ -1122,7 +1133,7 @@ function aiUseCombatSkill(attacker, defender) {
         const dest = safe[Math.floor(Math.random() * safe.length)];
         if (dest) {
           defender.zone = dest.id;
-          if (typeof checkHanguoyuRadar === 'function') checkHanguoyuRadar(defender, dest.id);
+
         }
       }
       break;
@@ -1146,7 +1157,7 @@ function aiUseCombatSkill(attacker, defender) {
       healCharactersInZone(attacker, 30);
       break;
     case "hanguoyu": {
-      for (let i = 0; i < 3; i++) lootOneItemForAI(attacker);
+      for (let i = 0; i < 3; i++) if (lootOneItemForAI(attacker)) grantSearchGrowth(attacker);
       break;
     }
     default:
@@ -1395,10 +1406,10 @@ function runAIBrain() {
     if (viableDrop && ai.sp >= AI_SEARCH_SP_COST) {
       ai.sp -= AI_SEARCH_SP_COST;
       const fastSearch = ai.id === "wangshijian" && balanceHasPassive(ai) && ai.stealthRemain > 0;
-      const searchDuration = fastSearch ? AI_FAST_SEARCH_DURATION_SEC : AI_SEARCH_DURATION_SEC;
+      const searchDuration = (fastSearch ? AI_FAST_SEARCH_DURATION_SEC : AI_SEARCH_DURATION_SEC) + zoneSongShowSearchPenalty(ai);
       ai.aiSearchingUntilSec = state.aiTimeSec + searchDuration;
       aiCommitAction(ai, searchDuration);
-      ai.lastAIAction = fastSearch ? "從從容容（0.5秒搜刮）" : "搜刮中";
+      ai.lastAIAction = zoneSongShowSearchPenalty(ai) ? `🎤 搜刮干擾（${searchDuration}秒）` : fastSearch ? "從從容容（0.5秒搜刮）" : "搜刮中";
       return;
     }
     if (moveAIToSafeZone(ai, targetZone)) { aiCommitAction(ai); return; }

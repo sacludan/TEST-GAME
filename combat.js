@@ -151,7 +151,7 @@ function healCharactersInZone(caster, amount = 30) {
   return result;
 }
 
-// 非戰鬥狀態下施放主動技（如：韓國魚、王世間、蔣晚安、亞洲桶神）
+// 非戰鬥狀態下施放主動技（如：豬勾亮、韓國魚、王世間、蔣晚安、亞洲桶神）
 function castNonCombatActiveSkill() {
   const p = state.player;
   if (!canUsePlayerSkill(p)) return;
@@ -166,9 +166,12 @@ function castNonCombatActiveSkill() {
     p.skillCdRemain = p.skill.cd;
   }
 
-  if (p.id === "hanguoyu") {
+  if (p.id === "zhugouliang") {
+    startZoneSongShow(p);
+    addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 在【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮額外 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
+  } else if (p.id === "hanguoyu") {
     addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 韓國魚發動技能，一次連摸 3 件物資！`, "text-amber-300 font-bold");
-    lootMultipleItemsForPlayer(3);
+    lootMultipleItemsForPlayer(3, 'all');
   } else if (p.id === "wangshijian") {
     p.stealthRemain = 12;
     addLog(`👻 <span class="text-sky-300 font-black">【Over my dead body】</span> 12 秒內不會被別人搜到也搜不到人，且【從從容容】讓搜刮時間縮短為 0.5 秒！`, "text-sky-300 font-bold");
@@ -178,7 +181,7 @@ function castNonCombatActiveSkill() {
   } else if (p.id === "yazhoutongshen") {
     p.reflectRemain = 8;
     p.reflectHitsRemaining = 2;
-    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 25%，最多反彈 2 次原始傷害的 100%！`, "text-amber-300 font-bold");
+    addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，最多反彈 2 次原始傷害的 100%！`, "text-amber-300 font-bold");
   }
 
   updateUI();
@@ -198,11 +201,11 @@ function resolveCombatHit(attacker, defender, rawDamage) {
     result.dodged = true;
     return result;
   }
-  // 豬勾亮歌廳秀：定身期間受攻擊傷害增加 20%（玩家/NPC 統一結算）。
-  const rawHit = Math.max(6, Math.round(rawDamage * (defender.stunRemain > 0 ? 1.2 : 1)));
-  // 亞洲桶神：8 秒內承受攻擊傷害 -25%，最多反彈兩次減傷前的原始傷害。
+  // 歌廳秀已改為區域搜刮減速，不再定身或增加受傷傷害。
+  const rawHit = Math.max(6, Math.round(rawDamage));
+  // 亞洲桶神：8 秒內承受攻擊傷害 -75%，最多反彈兩次減傷前的原始傷害。
   const shielding = defender.reflectRemain > 0;
-  const damage = shielding ? Math.max(1, Math.round(rawHit * 0.75)) : rawHit;
+  const damage = shielding ? Math.max(1, Math.round(rawHit * 0.25)) : rawHit;
   defender.hp = Math.max(0, defender.hp - damage);
   result.damage = damage;
   if (shielding && (defender.reflectHitsRemaining || 0) > 0) {
@@ -304,14 +307,13 @@ function executeCombatAction(action) {
 
     switch (p.id) {
       case "zhugouliang": {
-        ai.stunRemain = Math.max(ai.stunRemain || 0, 6);
-        triggerCombatShake("combat-panel");
-        addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 豬勾亮開秀！強制讓 ${ai.name} 站在原地 6 秒且受到傷害 +20%！`, "text-purple-300 font-bold");
+        startZoneSongShow(p);
+        addLog(`🎤 <span class="text-purple-300 font-black">【歌廳秀】</span> 【${getSafeCurrentZone(p.zone).name}】開秀 60 秒！本區其他角色搜刮 +1 秒，離區不受影響。`, 'text-purple-300 font-bold');
         break;
       }
       case "hanguoyu": {
         addLog(`💰 <span class="text-amber-300 font-black">【發大財！】</span> 一次搜出 3 個道具！`, "text-amber-300 font-bold");
-        lootMultipleItemsForPlayer(3);
+        lootMultipleItemsForPlayer(3, 'all');
         break;
       }
       case "kewenzhe": {
@@ -335,7 +337,7 @@ function executeCombatAction(action) {
           if (safeZones.length > 0) {
             const dest = safeZones[Math.floor(Math.random() * safeZones.length)];
             ai.zone = dest.id;
-            if (typeof checkHanguoyuRadar === 'function') checkHanguoyuRadar(ai, dest.id);
+
             addLog(`💨 ${ai.name} 被成功打離此地圖，飛往了【${dest.name}】！`, "text-sky-300 font-bold");
           } else {
             addLog(`💨 ${ai.name} 被震退脫離戰鬥！`, "text-sky-300 font-bold");
@@ -357,7 +359,7 @@ function executeCombatAction(action) {
       case "yazhoutongshen": {
         p.reflectRemain = 8;
         p.reflectHitsRemaining = 2;
-        addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 25%，最多反彈 2 次原始傷害的 100%！`, "text-amber-300 font-bold");
+        addLog(`🛡️ <span class="text-amber-300 font-black">【乾你老師奈德麗】</span> 8 秒內減傷 75%，最多反彈 2 次原始傷害的 100%！`, "text-amber-300 font-bold");
         break;
       }
       case "chaoge": {
@@ -409,9 +411,6 @@ function handleUnitDefeat(victim, killer) {
     victim.zone = dest.id;
 
     addLog(`✨ <span class="text-amber-300 font-black">【豬大哥沒死】</span> ${victim.name} 發動免死被動！恢復 30% 生命值 (${victim.hp} HP) 並瞬移至【${dest.name}】！`, "text-amber-300 font-bold");
-    if (victim !== state.player && typeof checkHanguoyuRadar === "function") {
-      checkHanguoyuRadar(victim, dest.id);
-    }
     finishCombatTurn();
     return;
   }
