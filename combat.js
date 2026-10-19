@@ -169,7 +169,7 @@ function castNonCombatActiveSkill() {
 function resolveCombatHit(attacker, defender, rawDamage) {
   const result = { damage: 0, dodged: false, reflected: 0, heal: 0, guan: false };
   if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
-  if (defender.id === "jiangwanan" && defender.dodgeReady) {
+  if (defender.id === "jiangwanan" && balanceHasPassive(defender) && defender.dodgeReady) {
     defender.dodgeReady = false;
     defender.dodgeCdRemain = 30;
     result.dodged = true;
@@ -183,7 +183,7 @@ function resolveCombatHit(attacker, defender, rawDamage) {
     attacker.hp = Math.max(0, attacker.hp - damage);
     result.reflected = damage;
   }
-  if (defender.id === "kewenzhe" && defender.hp > 0) {
+  if (defender.id === "kewenzhe" && balanceHasPassive(defender) && defender.hp > 0) {
     defender.hitTakenCount = (defender.hitTakenCount || 0) + 1;
     if (defender.hitTakenCount >= 3) {
       defender.hitTakenCount = 0;
@@ -191,7 +191,7 @@ function resolveCombatHit(attacker, defender, rawDamage) {
       defender.hp += result.heal;
     }
   }
-  if (defender.id === "chenaguan" && defender.hp > 0 &&
+  if (defender.id === "chenaguan" && balanceHasPassive(defender) && defender.hp > 0 &&
       defender.hp <= defender.maxHp * 0.35 && (defender.guanPassiveCd || 0) <= 0) {
     defender.guanPassiveCd = 40;
     defender.guanDefBuffRemain = 8;
@@ -372,7 +372,7 @@ function executeCombatAction(action) {
 
 function handleUnitDefeat(victim, killer) {
   // 豬勾亮被動【豬大哥沒死】：恢復 20% 血量並瞬移到其他區域
-  if (victim.id === "zhugouliang" && !victim.pigReviveUsed) {
+  if (victim.id === "zhugouliang" && balanceHasPassive(victim) && !victim.pigReviveUsed) {
     victim.pigReviveUsed = true;
     victim.hp = Math.max(1, Math.round(victim.maxHp * 0.2));
 

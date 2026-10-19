@@ -12,9 +12,23 @@
 .panel{background:linear-gradient(160deg,#172139,#121a2c);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 10px 24px #0001}.toolbar{display:grid;grid-template-columns:1fr 1fr 1fr auto;align-items:end;gap:14px}.field label{display:block;font-size:12px;font-weight:700;color:#c8d6e7;margin-bottom:7px}.field input,.field select{width:100%;border:1px solid #455570;border-radius:10px;padding:11px 12px;background:#091222;color:#fff;min-height:44px}.actions{display:flex;gap:7px;align-items:end}.btn{border:1px solid var(--line);color:var(--text);background:#24334d;padding:10px 13px;border-radius:11px;font-size:13px;font-weight:800;min-height:44px;white-space:nowrap}.btn-primary{background:#efae50;color:#1c190f;border-color:#efae50}.btn-stop{background:#4c2537;border-color:#82485b;color:#ffd2d9}.btn:focus-visible,.back:focus-visible{outline:2px solid var(--blue);outline-offset:3px}.quick{margin-top:13px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}.chip{border:1px solid #42536e;background:transparent;color:#d7e2f3;border-radius:20px;padding:4px 11px;font-size:12px}.chip.active{color:#201609;background:#efae50;border-color:#efae50;font-weight:800}
 .progress-area{display:none;margin-top:16px}.progress-area.show{display:block}.progressline{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:#d3dceb;margin-bottom:7px}.bar{height:9px;background:#090f1f;border-radius:8px;overflow:hidden}.bar>div{height:100%;width:0;background:linear-gradient(90deg,#5bb9f2,#5fe0b3);transition:width .2s}.statgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stat{background:#0b1426;border:1px solid #2b3b55;border-radius:13px;padding:14px}.stat span{display:block;font-size:12px;color:var(--muted)}.stat strong{display:block;font-size:24px;margin-top:2px;font-variant-numeric:tabular-nums}.stat small{font-size:11px;color:#9ca9be}
 .section-heading{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:12px}.section-heading h2{margin:0}.table-scroll{overflow-x:auto;overscroll-behavior-x:contain}.data-table{width:100%;border-collapse:collapse;font-size:13px;min-width:980px;font-variant-numeric:tabular-nums}.data-table th,.data-table td{padding:11px 9px;border-bottom:1px solid #2b3852;text-align:right;white-space:nowrap}.data-table th:first-child,.data-table td:first-child{text-align:left;position:sticky;left:0;background:#151d30;z-index:1}.data-table th{color:#b6c4dc;font-size:11px;font-weight:700}.data-table th button{background:none;border:0;color:inherit;font:inherit;font-weight:inherit;cursor:pointer;padding:0}.data-table th button:hover{text-decoration:underline}.data-table tr:hover td{background:#1c2940}.data-table tr:hover td:first-child{background:#1c2940}.name{font-weight:800;color:#f2f6ff}.pct{display:inline-flex;align-items:center;gap:7px;justify-content:end}.tinybar{height:5px;width:48px;border-radius:4px;background:#2b3650;overflow:hidden}.tinybar i{display:block;height:100%;background:#e8ae58;border-radius:4px}.sub{font-size:11px;color:var(--muted)}.barlist{display:grid;gap:10px;margin-top:14px}.brow{display:grid;grid-template-columns:90px minmax(0,1fr) 94px;align-items:center;gap:12px;font-size:13px}.brow .track{height:12px;background:#0a1221;border-radius:10px;overflow:hidden}.brow .fill{height:100%;background:#569fd3;border-radius:10px}.brow:nth-child(odd) .fill{background:#65d4ae}.brow strong{text-align:right;font-weight:650;font-variant-numeric:tabular-nums}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.attention{border-left:3px solid var(--gold);padding:8px 13px;margin-top:14px;background:#171e30;font-size:12px;color:#d6e0ee}.placeholder{padding:42px 12px;text-align:center;color:var(--muted)}.empty-icon{font-size:30px;display:block;margin-bottom:12px}.foot{font-size:12px;color:#8f9db2;margin-top:12px}.export{display:flex;gap:7px}.status-error{color:#ff999d;overflow-wrap:anywhere;font-size:12px}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-@media(max-width:850px){.toolbar{grid-template-columns:1fr 1fr}.statgrid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.actions{grid-column:1/-1}.actions button{flex:1}}
-@media(max-width:520px){.wrap{padding:20px 12px 48px}header{flex-direction:column}header .back{align-self:flex-start}.panel{padding:15px;border-radius:14px}.section-heading{align-items:flex-start;flex-direction:column}.stat strong{font-size:21px}}
+/* 測試專用技能開關 */
+.skill-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.skill-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.skill-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.skill-card{border:1px solid #34445e;background:#0e182b;border-radius:13px;padding:12px;min-width:0}
+.skill-name{font-weight:800;margin:0 0 8px}
+.skill-toggle{display:flex;gap:9px;align-items:start;padding:7px 0;cursor:pointer}
+.skill-toggle input{appearance:auto;width:18px;height:18px;flex-shrink:0;accent-color:#5fe0b3;margin:2px 0 0}
+.skill-toggle strong{display:block;font-size:12px;color:#e5f0fc}
+.skill-toggle small{display:block;font-size:11px;color:#aabbd1;line-height:1.35;margin-top:2px}
+.skill-toggle:has(input:not(:checked)){opacity:.55}
+.skill-note{font-size:12px;color:#c1d0e3;margin-top:10px}
+.compare-delta{font-size:11px;margin-top:4px;color:#d2a0f2}
+.baseline-info{font-size:12px;color:#5fe0b3;margin-top:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.attention{border-left:3px solid var(--gold);padding:8px 13px;margin-top:14px;background:#171e30;font-size:12px;color:#d6e0ee}.placeholder{padding:42px 12px;text-align:center;color:var(--muted)}.empty-icon{font-size:30px;display:block;margin-bottom:12px}.foot{font-size:12px;color:#8f9db2;margin-top:12px}.export{display:flex;gap:7px;flex-wrap:wrap}.status-error{color:#ff999d;overflow-wrap:anywhere;font-size:12px}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media(max-width:850px){.skill-list{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:1fr 1fr}.statgrid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.actions{grid-column:1/-1}.actions button{flex:1}}
+@media(max-width:520px){.skill-list{grid-template-columns:1fr}.wrap{padding:20px 12px 48px}header{flex-direction:column}header .back{align-self:flex-start}.panel{padding:15px;border-radius:14px}.section-heading{align-items:flex-start;flex-direction:column}.stat strong{font-size:21px}}
 </style>
 </head>
 <body>
@@ -28,7 +42,14 @@
 </div><div class="quick"><span class="hint">快速選擇：</span><button class="chip active" data-count="9">9 場 · 驗證</button><button class="chip" data-count="90">90 場 · 初測</button><button class="chip" data-count="900">900 場 · 深測</button></div>
 <div id="progress-area" class="progress-area" aria-live="polite"><div class="progressline"><span id="progress-label">準備中</span><span id="progress-percent">0%</span></div><div class="bar" role="progressbar" aria-label="模擬進度" id="progress-bar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill"></div></div></div>
 <div id="message" class="hint" style="margin-top:12px" role="status">建議先跑 9 場確認功能，正式分析至少 90 場。每場是完整模擬，場數越多需要的運算時間越長。</div></section>
-<section class="panel"><div class="section-heading"><h2>測試摘要</h2><div class="export"><button class="btn" id="csv" disabled>⬇ 匯出 CSV</button><button class="btn" id="json" disabled>⬇ JSON</button></div></div><div class="statgrid">
+<section class="panel" aria-label="技能開關設定">
+<div class="skill-head"><div><h2>🧪 角色技能開關</h2><p class="hint">只作用於 AI 平衡模擬，不會永久更改正式遊戲的主動或被動技能。</p></div>
+<div class="skill-actions"><button class="btn" id="all-on" type="button">全部啟用</button><button class="btn" id="all-actives-off" type="button">關閉所有主動</button><button class="btn" id="all-passives-off" type="button">關閉所有被動</button></div></div>
+<div id="skill-list" class="skill-list" aria-label="九位角色技能選擇"></div>
+<p class="skill-note" id="skill-summary">預設全部啟用。先跑一組全開，再只關閉要研究的技能。</p>
+<p class="hint">註：韓國魚的「入區雷達」屬真人資訊提示，目前 NPC 未利用該訊號，單獨切換這項被動無法測出真人使用價值。比較基準只暫存在本頁，重新整理即會消失。</p>
+</section>
+<section class="panel"><div class="section-heading"><h2>測試摘要</h2><div class="export"><button class="btn" id="save-baseline" disabled>☆ 設為比較基準</button><button class="btn" id="clear-baseline" disabled>清除基準</button><button class="btn" id="csv" disabled>⬇ 匯出 CSV</button><button class="btn" id="json" disabled>⬇ JSON</button></div></div><p class="baseline-info" id="baseline-info">尚未設定比較基準。</p><div class="statgrid">
 <div class="stat"><span>完成場次</span><strong id="s-games">—</strong><small>完整模擬</small></div>
 <div class="stat"><span>單場平均時長</span><strong id="s-duration">—</strong><small>遊戲內秒數</small></div>
 <div class="stat"><span>無單一冠軍場數</span><strong id="s-draws">—</strong><small>風暴可能同時淘汰</small></div>
@@ -39,6 +60,7 @@
 <div class="two"><section class="panel"><h2>角色冠軍率</h2><p class="hint">視覺比較；長條不是信賴區間</p><div id="chart-win" class="barlist"><div class="placeholder">等待測試資料</div></div></section><section class="panel"><h2>執行順位影響</h2><p class="hint">每 9 場輪換順位，統計第 1～9 位獲勝比例，排除固定先手的系統偏差</p><div id="chart-order" class="barlist"><div class="placeholder">等待測試資料</div></div></section></div>
 <section class="panel"><h2>該怎麼解讀？</h2><div id="insight" class="hint">先看「勝率＋平均名次＋前三率」，再看傷害、合成發育與技能施放。沒有足夠場次時，不要僅依幾局結果決定角色強弱。</div><div class="attention"><strong>測試範圍：</strong>本工具讓全部 9 位角色由正式 NPC AI 控制，因此衡量的是「角色能力＋現有 AI 決策」的整體表現，<strong>不是</strong>真人角色勝率。韓國魚的入區雷達等只影響真人操作的資訊技能，AI 尚未完整利用。測試器沒有修改正式版的攻擊間隔、經驗限制或圖片預載；玩家主動遭遇戰操作也未被模擬。起始位置按正式版獨立抽樣，每九場讓每名角色輪流站過所有執行順位。結果不代表政治人物的評價。</div></section>
 </main>
-<script src="balance_ui.js?v=2"></script>
+<script src="characters.js?v=62"></script>
+<script src="balance_ui.js?v=3"></script>
 </body>
 </html>

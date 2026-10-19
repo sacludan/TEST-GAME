@@ -262,6 +262,13 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
   };
 }
 
+// 平衡實驗室專用技能開關。正式遊戲沒有設定時，所有角色被動保持原樣。
+function balanceHasPassive(entity) {
+  if (!entity) return false;
+  const switches = globalThis.BALANCE_SKILL_OVERRIDES;
+  return !switches || !switches[entity.id] || switches[entity.id].passive !== false;
+}
+
 function getTotalAtk(entity) {
   if (!entity) return 0;
   let total = entity.baseAtk || 10;
@@ -272,7 +279,7 @@ function getTotalAtk(entity) {
     });
   }
 
-  if (entity.id === "laixiangde" && entity.gongdeStacks > 0) {
+  if (entity.id === "laixiangde" && balanceHasPassive(entity) && entity.gongdeStacks > 0) {
     total += entity.gongdeStacks;
   }
 
@@ -285,10 +292,10 @@ function getTotalAtk(entity) {
 
 function isChaoGeAuraAffecting(entity) {
   if (!entity || entity.id === "chaoge") return false;
-  if (state.player && state.player.alive && state.player.id === "chaoge" && state.player.zone === entity.zone) {
+  if (state.player && state.player.alive && state.player.id === "chaoge" && balanceHasPassive(state.player) && state.player.zone === entity.zone) {
     return true;
   }
-  if (state.ais && state.ais.some(a => a && a.alive && a.id === "chaoge" && a.zone === entity.zone)) {
+  if (state.ais && state.ais.some(a => a && a.alive && a.id === "chaoge" && balanceHasPassive(a) && a.zone === entity.zone)) {
     return true;
   }
   return false;
@@ -672,7 +679,7 @@ function tickEntityTimers(entity) {
   }
 
   // 蔣晚安：觸發必閃後 30 秒才重新準備（玩家／NPC 共用）
-  if (entity.id === "jiangwanan" && !entity.dodgeReady) {
+  if (entity.id === "jiangwanan" && balanceHasPassive(entity) && !entity.dodgeReady) {
     if (entity.dodgeCdRemain > 0) {
       entity.dodgeCdRemain--;
       if (entity.dodgeCdRemain === 0) {
@@ -1177,7 +1184,7 @@ function triggerPlayerSkillButton(e) {
 
 function checkHanguoyuRadar(movingEntity, targetZoneId) {
   if (!state.player || !state.player.alive) return;
-  if (state.player.id !== "hanguoyu") return;
+  if (state.player.id !== "hanguoyu" || !balanceHasPassive(state.player)) return;
   if (movingEntity.isPlayer) return;
 
   if (targetZoneId === state.player.zone) {
@@ -1247,7 +1254,7 @@ function useOrEquipBagItem(bagIndex) {
     let healSp = item.sp || 0;
 
     // 亞洲桶神被動：鼎王吃到飽 (食物回血量提升 20%)
-    if (p.id === "yazhoutongshen" && healHp > 0) {
+    if (p.id === "yazhoutongshen" && balanceHasPassive(p) && healHp > 0) {
       healHp = Math.round(healHp * 1.2);
     }
 

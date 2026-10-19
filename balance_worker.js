@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=61', 'game_config.js',
-  'growth.js', 'ai.js?v=118', 'combat.js?v=118', 'main.js?v=131'
+  'recipes.js', 'maps.js', 'characters.js?v=62', 'game_config.js',
+  'growth.js', 'ai.js?v=119', 'combat.js?v=119', 'main.js?v=132'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -21,6 +21,22 @@ let cancelled = false;
 let activeMetrics = null;
 const heroIds = Object.keys(GAME_CHARACTERS);
 const nativeRandom = Math.random;
+// 開關只存在於此獨立 Worker，不寫入正式版 GAME_CHARACTERS。
+function parseSwitches(raw) {
+  const result = Object.create(null);
+  for (const id of heroIds) {
+    const entry = raw && typeof raw === 'object' ? raw[id] : null;
+    result[id] = {
+      active: !(entry && entry.active === false),
+      passive: !(entry && entry.passive === false)
+    };
+  }
+  return result;
+}
+function activeAllowed(entity) {
+  return !!entity && globalThis.BALANCE_SKILL_OVERRIDES?.[entity.id]?.active !== false;
+}
+
 function seededRandom(seed) {
   let s = seed >>> 0;
   return function () {
@@ -67,6 +83,7 @@ aiUseFood = function (entity, force = false) {
 };
 const originalActive = aiUseCombatSkill;
 aiUseCombatSkill = function (attacker, defender) {
+  if (!activeAllowed(attacker)) return false;
   const before = attacker.hp;
   const used = originalActive(attacker, defender);
   const m = track(attacker);
@@ -75,6 +92,7 @@ aiUseCombatSkill = function (attacker, defender) {
 };
 const originalNonCombat = aiTryUseNonCombatSkill;
 aiTryUseNonCombatSkill = function (entity) {
+  if (!activeAllowed(entity)) return false;
   const before = entity.hp;
   const used = originalNonCombat(entity);
   const m = track(entity);
@@ -242,6 +260,7 @@ onmessage = async function (event) {
     const n = Math.min(10000, Math.max(1, Math.floor(Number(input.count)||100)));
     const seed = (Number(input.seed)>>>0) || 20261019;
     const difficulty = input.difficulty === 'easy' ? 'easy' : 'hard';
+    globalThis.BALANCE_SKILL_OVERRIDES = parseSwitches(input.skillSwitches);
     const matches=[];
     let rotationBlock=[];
     const updateEvery=Math.max(1,Math.floor(n/100));
@@ -264,10 +283,11 @@ onmessage = async function (event) {
       }
     }
     const report=aggregate(matches);
-    postMessage({type:'done', report, settings:{seed,difficulty,requested:n}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
+    postMessage({type:'done', report, settings:{seed,difficulty,requested:n,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
   } catch (error) {
     postMessage({type:'error',message:String(error?.stack||error)});
   } finally {
     activeMetrics=null; Math.random=nativeRandom; started=false;
+    delete globalThis.BALANCE_SKILL_OVERRIDES;
   }
 };

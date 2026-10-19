@@ -38,7 +38,7 @@ function aiCombatOdds(ai, other) {
   const gearAdv = (getTotalAtk(ai) - getTotalAtk(other)) * 0.35 + (getTotalDef(ai) - getTotalDef(other)) * 0.65;
   // 閃避、反彈和免死會影響交戰風險，不只看血量。
   const passiveDanger = (other.dodgeReady ? 0.65 : 0) + ((other.reflectRemain || 0) > 0 ? 2.0 : 0) +
-    (other.id === "zhugouliang" && !other.pigReviveUsed ? 0.5 : 0);
+    (other.id === "zhugouliang" && balanceHasPassive(other) && !other.pigReviveUsed ? 0.5 : 0);
   return (enemyTurns - myTurns) + gearAdv * 0.035 - passiveDanger;
 }
 function aiFoodCount(ai) { return (ai.bag || []).filter(id => getSafeItem(id)?.type === "food").length; }
@@ -523,7 +523,7 @@ function aiUseFood(ai, force = false) {
   let bestValue = -Infinity;
   const missingHp = Math.max(0, (ai.maxHp || ai.hp) - ai.hp);
   const missingSp = Math.max(0, (ai.maxSp || ai.sp) - ai.sp);
-  const hpMultiplier = ai.id === "yazhoutongshen" ? 1.2 : 1;
+  const hpMultiplier = ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.2 : 1;
 
   ai.bag.forEach((id, index) => {
     const resolved = aiResolveItemId(id);
@@ -597,7 +597,7 @@ function aiScorePickup(ai, item, id, plan) {
     const spRatio = ai.sp / Math.max(1, ai.maxSp);
     const healthNeed = Math.max(0, (ai.maxHp - ai.hp) * (hpRatio < 0.55 ? 1.2 : 0.12));
     const staminaNeed = Math.max(0, (ai.maxSp - ai.sp) * (spRatio < 0.45 ? 1.0 : 0.08));
-    const foodUtility = Math.min(healthNeed, (Number(item.hp) || 0) * (ai.id === "yazhoutongshen" ? 1.2 : 1)) + Math.min(staminaNeed, Number(item.sp) || 0) * 0.8;
+    const foodUtility = Math.min(healthNeed, (Number(item.hp) || 0) * (ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.2 : 1)) + Math.min(staminaNeed, Number(item.sp) || 0) * 0.8;
     if (aiPlanRequiredCopies(plan, resolved) > aiCountOwned(ai, resolved)) return 1300 + foodUtility;
     const foodCount = aiFoodCount(ai);
     if (foodCount >= aiFoodQuota(ai)) return -650 + foodUtility;
@@ -863,7 +863,7 @@ function moveAIToSafeZone(ai, targetZone = null) {
 function aiUseHPFood(ai) {
   if (!ai || ai.hp >= ai.maxHp) return false;
   const missing = ai.maxHp - ai.hp;
-  const multiplier = ai.id === "yazhoutongshen" ? 1.2 : 1;
+  const multiplier = ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.2 : 1;
   let bestIndex = -1;
   let bestValue = -Infinity;
   (ai.bag || []).forEach((id, index) => {
@@ -1032,7 +1032,7 @@ function aiTryUseNonCombatSkill(ai) {
 // NPC 被動免死與死亡處理，保持與玩家遭遇戰相同的基本效果。
 function aiResolveUnitDefeat(victim, killer) {
   if (!victim || victim.hp > 0 || !victim.alive) return false;
-  if (victim.id === "zhugouliang" && !victim.pigReviveUsed) {
+  if (victim.id === "zhugouliang" && balanceHasPassive(victim) && !victim.pigReviveUsed) {
     victim.pigReviveUsed = true;
     victim.hp = Math.max(1, Math.round(victim.maxHp * 0.2));
     const safe = getSafeOpenZonesForAI(victim.zone);
@@ -1364,7 +1364,7 @@ function runAIBrain() {
     if (seekTarget && moveAIToSafeZone(ai, targetZone)) { aiCommitAction(ai); return; }
     if (viableDrop && ai.sp >= AI_SEARCH_SP_COST) {
       ai.sp -= AI_SEARCH_SP_COST;
-      const fastSearch = ai.id === "wangshijian" && ai.stealthRemain > 0;
+      const fastSearch = ai.id === "wangshijian" && balanceHasPassive(ai) && ai.stealthRemain > 0;
       const searchDuration = fastSearch ? AI_FAST_SEARCH_DURATION_SEC : AI_SEARCH_DURATION_SEC;
       ai.aiSearchingUntilSec = state.aiTimeSec + searchDuration;
       aiCommitAction(ai, searchDuration);
