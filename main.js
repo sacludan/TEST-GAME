@@ -264,7 +264,6 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     stunRemain: 0,
     stealthRemain: 0,
     reflectRemain: 0,
-    reflectHitsRemaining: 0,
     milkDefBuffRemain: 0,
     weakenedRemain: 0,
     dodgeReady: (tpl.id === "jiangwanan" && balanceHasPassive(tpl)), // 平衡測試關閉被動時不可殘留必閃狀態
@@ -1211,6 +1210,11 @@ function triggerPlayerSkillButton(e) {
   if (e) e.stopPropagation();
   if (state.gameOver || !state.player) return;
   if (state.player.isResting) stopPlayerRest("你停止休息，準備施放技能。");
+  // 歌廳秀為無行動成本的地區技；遭遇中放完仍可選普通攻擊／無視。
+  if (state.player.id === "zhugouliang") {
+    if (typeof castNonCombatActiveSkill === "function") castNonCombatActiveSkill();
+    return;
+  }
   if (state.inCombat) {
     if (typeof executeCombatAction === "function") executeCombatAction("skill");
   } else if (typeof castNonCombatActiveSkill === "function") {
@@ -1219,7 +1223,14 @@ function triggerPlayerSkillButton(e) {
 }
 
 // 韓國魚【愛情摩天輪】已取代舊雷達，所有角色恢復普通 65% 遇敵率。
-function getSearchEncounterChance(searcher, target) { return 0.65; }
+function getSearchEncounterChance(searcher, target) {
+  // 遭歌廳秀影響的角色，搜刮遭遇「正在該區開秀的豬勾亮」機率降為 45%。
+  // 歌廳秀對其他目標的遭遇機率仍是 65%，離區或 60 秒期滿立即失效。
+  if (searcher && target && target.id === "zhugouliang" &&
+      searcher.zone === target.zone && zoneSongShowSearchPenalty(searcher) > 0 &&
+      state.zoneSongShows?.[searcher.zone]?.caster === target) return 0.45;
+  return 0.65;
+}
 
 // ==========================================
 // 8. 6格裝備欄、背包操作與拖曳系統
@@ -2656,7 +2667,7 @@ function updateUI() {
       bList.push(`<span class="px-1.5 py-0.5 bg-emerald-950 border border-emerald-400 text-emerald-300 rounded text-[9px] font-bold">🛌 休息中 (+${REST_SP_REGEN_PER_SEC}/秒)</span>`);
     }
     if (p.reflectRemain > 0) {
-      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／反彈剩 ${p.reflectHitsRemaining || 0} 次</span>`);
+      bList.push(`<span class="px-1.5 py-0.5 bg-rose-950 border border-rose-400 text-rose-300 rounded text-[9px] font-bold">🛡️ 減傷75% ${p.reflectRemain}s／無限反彈</span>`);
     }
     const showLeft = zoneSongShowRemaining(p.zone);
     if (showLeft > 0) {

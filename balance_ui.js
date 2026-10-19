@@ -30,6 +30,7 @@
       ...(!v.passive ? [`${heroes[id].name}【${heroes[id].passive.name}】`] : [])
     ]);
     $('skill-summary').textContent=disabled.length ? `關閉 ${disabled.length} 項：${disabled.join('、')}` : '目前 18 項技能全部啟用（正式版狀態）。';
+    $('skill-collapsed-summary').textContent = disabled.length ? `已停用 ${disabled.length} 項技能` : '18 項技能全部啟用';
   }
   function toggleAll(type,flag) {
     document.querySelectorAll('.skill-switch').forEach(el => {if(type==='all'||el.dataset.skill===type) el.checked=flag;});
@@ -226,7 +227,7 @@
       for(let i=0;i<workerCount;i++) {
         const startIndex=Math.floor(i*n/workerCount);
         const endIndex=Math.floor((i+1)*n/workerCount);
-        const worker=new Worker('balance_worker.js?v=6');
+        const worker=new Worker('balance_worker.js?v=7');
         jobs.push({worker,startIndex,count:endIndex-startIndex,completed:0,done:false,report:null});
       }
     } catch(e) {

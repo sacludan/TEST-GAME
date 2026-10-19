@@ -23,7 +23,7 @@ const GAME_CHARACTERS = {
       cd: 30,
       costSp: 25,
       combatOnly: false,
-      desc: "在目前地區舉辦歌廳秀，持續 60 秒；除了自己，區域內其他角色搜刮多花 1 秒。離開該地區不受影響"
+      desc: "不消耗行動（仍需 25 體力），隨時在本區開秀 60 秒：其他角色搜刮 +1 秒，搜到豬勾亮的機率降為 45%；離區不受影響"
     },
     passive: {
       name: "豬大哥沒死",
@@ -163,7 +163,7 @@ const GAME_CHARACTERS = {
       cd: 25,
       costSp: 20,
       combatOnly: false,
-      desc: "接下來 8 秒受到攻擊傷害 -75%，最多反彈 2 次受到的原始傷害（100%）"
+      desc: "8 秒內受到攻擊傷害 -75%，期間每次受擊都反彈原始傷害 100%（無次數上限）"
     },
     passive: {
       name: "鼎王吃到飽",
