@@ -1140,8 +1140,9 @@ function renderLootChoice() {
     resolveLootChoice(false);
     return;
   }
-  if (item.type === 'material' && window.GameAudio?.playMaterialFound) {
-    // 用物件識別同一件搜刮結果，避免重新繪製 UI 時連續發出多次提示音。
+  // V19.54: 每一件找到的道具首次彈窗都響一次，無論類型或是否與之前的道具重複。
+  // 用「此次搜刮結果物件」而非道具 ID 去重，避免同一視窗重繪重複播放。
+  if (window.GameAudio?.playMaterialFound) {
     if (!renderLootChoice._chimedItems) renderLootChoice._chimedItems = new WeakSet();
     if (!renderLootChoice._chimedItems.has(current)) {
       renderLootChoice._chimedItems.add(current);

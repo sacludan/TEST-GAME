@@ -320,6 +320,15 @@
         <button id="audio-mute-button" type="button" onclick="GameAudio.toggleMute()" class="flex-1 rounded-lg bg-slate-800 hover:bg-slate-700 px-2 py-1.5 text-[11px] font-bold">🔊 音樂開啟</button>
         <button type="button" onclick="GameAudio.play()" class="rounded-lg bg-indigo-800 hover:bg-indigo-700 px-2 py-1.5 text-[11px] font-bold">▶ 試聽</button>
       </div>
+      <div class="border-t border-slate-700 pt-2 space-y-1.5">
+        <div class="flex items-center justify-between gap-1">
+          <span class="text-[11px] font-bold text-slate-200">🔔 遊戲音效</span>
+          <button id="audio-sfx-mute" onclick="GameAudio.toggleSfxMute()" type="button" class="rounded-md bg-slate-800 border border-slate-600 px-2 py-1 text-[10px]">🔊 音效開啟</button>
+        </div>
+        <label for="audio-sfx-volume" class="block text-[11px] text-slate-300">音效音量 <span id="audio-sfx-volume-label">75%</span></label>
+        <input id="audio-sfx-volume" type="range" min="0" max="100" value="75" oninput="GameAudio.setSfxVolume(this.value)" class="w-full accent-amber-400" aria-label="遊戲音效音量">
+        <button type="button" onclick="GameAudio.previewPickup()" class="w-full bg-amber-800/70 border border-amber-500/40 rounded-lg py-1.5 text-[11px] font-bold text-amber-100">🔔 試播拾獲叮聲</button>
+      </div>
       <button type="button" onclick="GameAudio.closePanel()" class="w-full text-center text-[10px] text-slate-400 hover:text-white">關閉設定</button>
     </div>
 
@@ -351,7 +360,7 @@
                 <span>角色選擇</span>
                 <span class="block text-[11px] text-amber-300 font-bold mt-0.5">目前：<span id="selected-char-inline">豬勾亮</span></span>
               </button>
-              <div class="text-[10px] text-slate-200/75 text-center">V19.53</div>
+              <div class="text-[10px] text-slate-200/75 text-center">V19.54</div>
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
@@ -797,6 +806,15 @@
             </div>
             <label for="audio-volume-menu" class="flex justify-between text-[11px] text-slate-300"><span>音量</span><span id="audio-volume-label-menu">30%</span></label>
             <input id="audio-volume-menu" type="range" min="0" max="100" value="30" oninput="GameAudio.setVolume(this.value)" class="w-full accent-indigo-400" aria-label="遊戲背景音樂音量">
+            <div class="border-t border-slate-700/80 pt-2 space-y-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-black text-slate-100">🔔 遊戲音效</span>
+                <button id="audio-sfx-mute-menu" type="button" onclick="GameAudio.toggleSfxMute()" class="rounded-lg bg-slate-800 hover:bg-slate-700 px-2 py-1.5 text-[11px] font-bold text-slate-100">🔊 音效開啟</button>
+              </div>
+              <label for="audio-sfx-volume-menu" class="flex justify-between text-[11px] text-slate-300"><span>音效音量</span><span id="audio-sfx-volume-label-menu">75%</span></label>
+              <input id="audio-sfx-volume-menu" type="range" min="0" max="100" value="75" oninput="GameAudio.setSfxVolume(this.value)" class="w-full accent-amber-400" aria-label="遊戲音效音量">
+              <button type="button" onclick="GameAudio.previewPickup()" class="w-full py-1.5 rounded-lg bg-amber-800/70 border border-amber-500/40 text-amber-100 text-xs font-bold">🔔 試播拾獲叮聲</button>
+            </div>
           </section>
 
           <div class="space-y-2 pt-1">
@@ -964,9 +982,9 @@
   <script src="lobby.js?v=1944"></script>
   <script src="ai.js?v=1953"></script>
   <script src="combat.js?v=1953"></script>
-  <script src="main.js?v=1953"></script>
+  <script src="main.js?v=1954"></script>
   <script src="corpse.js?v=1953"></script>
   <script src="growth_ui.js?v=117"></script>
-  <script src="audio_manager.js?v=1953"></script>
+  <script src="audio_manager.js?v=1954"></script>
 </body>
 </html>
