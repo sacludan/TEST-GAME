@@ -1,4 +1,4 @@
-/* 台北倖存者 V19.59 — 劇情教學完整版：淡水 → 三重 → 立法院 → 神秘通訊。 */
+/* 台北倖存者 V19.60 — 強制圖鑑追蹤教學：吃豆腐 → 查帶釘折凳 → 追蹤 → 三重。 */
 (function () {
   'use strict';
 
@@ -16,11 +16,14 @@
     currentHint: '',
     focused: null,
     _searching: false,
+    _savedBookFilters: null,
 
     start() {
       this.active = true;
       this.step = 'blink';
       this.finalEnemy = null;
+      this._savedBookFilters = null;
+      this.setBookControlsLocked(false);
       clearTimeout(this._blackoutTimer);
       this.enemy = createCharacterEntity('yazhoutongshen', false, 'sanchong');
       this.enemy.equip.acc = { ...getSafeItem('party_card'), id: 'party_card' };
@@ -176,8 +179,70 @@
         this.guide('長按背包裡的「豆腐」，拖曳到上方人物欄使用。', '[data-fast-drag="bag"]');
       }
     },
+    // V19.60: 館長取得折凳並吃完豆腐後，練習圖鑑追蹤。
+    // 教學直接篩到目標配方，不要求新手打字搜尋；必須逐步點選真正的圖鑑 UI。
     afterFood() {
-      this.say('等等…三重埔那邊好像有聲音，去看看好了！', () => this.promptMap('sanchong'));
+      this.say([
+        '幹，只有這張塑膠折凳，感覺也沒什麼殺傷力……',
+        '不知道有沒有辦法改造一下？'
+      ], () => this.promptOpenBook());
+    },
+    promptOpenBook() {
+      this.step = 'book_open';
+      this.guide('點擊左下角「圖鑑」，查看能改造的裝備。', 'button[onclick="openCraftBookModal()"]');
+    },
+    setBookControlsLocked(locked) {
+      // 防止教學期間更換篩選條件、搜尋或亂選配方，離開時還原。
+      for (const el of document.querySelectorAll('#craft-book-modal [id^="craft-type-"]')) el.disabled = locked;
+      const rarity = $('craft-book-rarity');
+      if (rarity) rarity.disabled = locked;
+      const search = $('craft-book-search');
+      if (search) search.readOnly = locked;
+    },
+    showBookTarget() {
+      this._savedBookFilters = {
+        type: state.craftBookType || 'all',
+        filter: state.craftBookFilter || 'all',
+        search: state.craftBookSearch || ''
+      };
+      state.craftBookType = 'all';
+      state.craftBookFilter = 'all';
+      state.craftBookSearch = getSafeItem('spiked_stool')?.name || '帶釘折凳';
+      const search = $('craft-book-search');
+      if (search) search.value = state.craftBookSearch;
+      renderCraftBook();
+      this.setBookControlsLocked(true);
+      this.step = 'book_target';
+      const entries = [...document.querySelectorAll('#craft-recipes-list > div[onclick]')];
+      const target = entries.find(el => el.getAttribute('onclick') === "openItemInfoModal('spiked_stool')");
+      // 避免「霸王帶釘折凳」等名稱含相同關鍵字的裝備干擾強制教學。
+      entries.forEach(el => el.classList.toggle('hidden', el !== target));
+      if ($('craft-book-count')) $('craft-book-count').textContent = '教學目標 · 帶釘折凳';
+      this.guide('找到「帶釘折凳」，點擊它查看合成材料。', target || '#craft-recipes-list');
+    },
+    showBookTrack() {
+      this.step = 'book_track';
+      const target = [...document.querySelectorAll('#info-buttons-container button[onclick]')]
+        .find(el => el.getAttribute('onclick') === "setTrackedItem('spiked_stool')");
+      this.guide('原來只缺生鏽鐵釘！點擊「鎖定追蹤此物資」。', target || '#info-buttons-container');
+    },
+    showBookClose() {
+      this.step = 'book_close';
+      this.guide('追蹤已設定好！點擊「關閉」回到生存畫面。', '#craft-book-modal button[onclick="closeCraftBookModal()"]');
+    },
+    finishBookTutorial() {
+      if (this._savedBookFilters) {
+        state.craftBookType = this._savedBookFilters.type;
+        state.craftBookFilter = this._savedBookFilters.filter;
+        state.craftBookSearch = this._savedBookFilters.search;
+        this._savedBookFilters = null;
+      }
+      this.setBookControlsLocked(false);
+      // 追蹤欄已由 setTrackedItem + updateUI 真實建立，無須製作假進度。
+      this.say([
+        '好，這樣就知道還缺什麼材料了。',
+        '等等…三重埔那邊好像有聲音，去看看好了！'
+      ], () => this.promptMap('sanchong'));
     },
     promptMap(zoneId) {
       this.destination = zoneId;
@@ -233,7 +298,7 @@
         closeCorpseLoot();
         this.say([
           '黨證…統神，你也墮落了嗎…',
-          '等等，這個鐵釘應該能派上用場！'
+          '等等，這個鐵釘不就是剛才追蹤缺少的材料嗎！'
         ], () => this.promptCraft());
         return;
       }
@@ -363,6 +428,28 @@
       }
       if (this.step === 'take_tofu' && el.closest('#loot-choice-take')) {
         intercept(); this.takeStoryLoot('take'); return;
+      }
+      // 圖鑑追蹤：只接受書本入口、指定配方、指定追蹤、關閉圖鑑四個操作。
+      if (this.step === 'book_open' && el.closest('button[onclick="openCraftBookModal()"]')) {
+        intercept(); openCraftBookModal(); this.showBookTarget(); return;
+      }
+      if (this.step === 'book_target') {
+        const row = el.closest('#craft-recipes-list > div[onclick]');
+        if (row?.getAttribute('onclick') === "openItemInfoModal('spiked_stool')") {
+          intercept(); openItemInfoModal('spiked_stool'); this.showBookTrack(); return;
+        }
+      }
+      if (this.step === 'book_track') {
+        const button = el.closest('#info-buttons-container button[onclick]');
+        if (button?.getAttribute('onclick') === "setTrackedItem('spiked_stool')") {
+          intercept(); setTrackedItem('spiked_stool');
+          // 正式追蹤功能會自動關閉圖鑑；教學重開一次，讓玩家練習「關閉」。
+          openCraftBookModal();
+          this.showBookClose(); return;
+        }
+      }
+      if (this.step === 'book_close' && el.closest('#craft-book-modal button[onclick="closeCraftBookModal()"]')) {
+        intercept(); closeCraftBookModal(); this.finishBookTutorial(); return;
       }
       if (this.step === 'open_map' && el.closest('#main-map-btn')) {
         intercept(); openMapModal(); this.showMapTarget(); return;
