@@ -390,12 +390,12 @@ function applyDamageToTarget(attacker, defender, rawDamage, isCrit = false, labe
     window.GameAudio.playSfx('hit');
   }
   if (defender === state.player) {
-    if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
+    if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake(result.damage);
     if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
   }
   if (result.reflected) {
     if (attacker === state.player) {
-      if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
+      if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake(result.reflected);
       if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
     }
     addLog(`🔄 【乾你老師奈德麗】${defender.name} 反彈 ${result.reflected} 傷害！`, "text-rose-400 font-bold");

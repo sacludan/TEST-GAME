@@ -1251,7 +1251,7 @@ function aiAttackPlayerOnSearch(ai) {
   const skillName = ai.skill?.name || '技能';
   const action = skillUsed ? `使用【${skillName}】` : (critical ? '爆擊攻擊' : '普通攻擊');
   if (dmgTaken > 0) {
-    if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
+    if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake(dmgTaken);
     // V19.48: NPC 是直接在 ai.js 結算玩家傷害，不會經過 combat.js 的音效鉤子。
     if (typeof window !== 'undefined' && window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
     addLog(`⚔️ 【遭遇襲擊】${ai.name} 在【${zoneName}】搜刮遇到你，${action}造成 <b class="text-rose-300">${dmgTaken}</b> 點傷害！`, 'text-rose-400 font-black');

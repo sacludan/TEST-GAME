@@ -796,9 +796,12 @@ function gameTick() {
         // 最終決戰公平地對所有角色生效，原有補血與免死能力仍能發揮。
         const damage = 12;
         if (state.player.alive) {
+          const beforeHitHp = state.player.hp;
           state.player.hp = Math.max(0, state.player.hp - applyEasyPlayerDamageReduction(damage + (state.closedZones.includes(state.player.zone) ? 12 : 0), state.player));
-          if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
-          if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
+          if (beforeHitHp > state.player.hp) {
+            if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
+            triggerPlayerHitShake(beforeHitHp - state.player.hp);
+          }
         }
         state.ais.filter(ai => ai && ai.alive).forEach(ai => {
           ai.hp = Math.max(0, ai.hp - damage - (state.closedZones.includes(ai.zone) ? 12 : 0));
@@ -814,11 +817,14 @@ function gameTick() {
           else ai.alive = false;
         });
       } else if (state.closedZones.includes(state.player.zone)) {
+        const beforeHitHp = state.player.hp;
         const zoneDamage = applyEasyPlayerDamageReduction(12, state.player);
         state.player.hp = Math.max(0, state.player.hp - zoneDamage);
         addLog(`⚡ 警告！你位於禁區內，遭到高壓電流轟擊 (-${zoneDamage} HP)！請立刻移動！`, 'text-rose-500 font-black');
-        if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
-        if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
+        if (beforeHitHp > state.player.hp) {
+          if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
+          triggerPlayerHitShake(beforeHitHp - state.player.hp);
+        }
         if (state.player.hp <= 0) {
           // 普通禁區觸電也會觸發豬勾亮的單次免死，耗盡後才真的淘汰。
           handleUnitDefeat(state.player, null);
@@ -2626,20 +2632,29 @@ function triggerGameOver(isWin, reasonText) {
   if (modal) modal.classList.remove("hidden");
 }
 
-// V19.45：只有玩家實際遭敵人攻擊扣血時才觸發的短促畫面震動。
-// 使用 CSS transform 的小幅位移；遵守系統「減少動態效果」偏好。
-function triggerPlayerHitShake() {
+// V19.59：玩家實際扣血後，所有模式統一強化視覺回饋（不影響傷害公式）。
+function triggerPlayerHitShake(damageAmount = null) {
   if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
   const frame = document.getElementById('game-screen');
   if (!frame || frame.classList.contains('hidden')) return;
-  try {
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  } catch (_) {}
+  const overlay = document.getElementById('player-impact-overlay');
+  const number = document.getElementById('player-impact-number');
+  const dmg = Number(damageAmount);
+  if (number) number.textContent = Number.isFinite(dmg) && dmg > 0 ? `-${Math.round(dmg)}` : '受擊！';
+  if (overlay) {
+    overlay.classList.remove('active');
+    void overlay.offsetWidth;
+    overlay.classList.add('active');
+    clearTimeout(triggerPlayerHitShake._overlayTimer);
+    triggerPlayerHitShake._overlayTimer = setTimeout(() => overlay.classList.remove('active'), 610);
+  }
+  const reduced = !!(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  if (reduced) return;
   frame.classList.remove('player-hit-shake');
   void frame.offsetWidth;
   frame.classList.add('player-hit-shake');
   clearTimeout(triggerPlayerHitShake._timer);
-  triggerPlayerHitShake._timer = setTimeout(() => frame.classList.remove('player-hit-shake'), 210);
+  triggerPlayerHitShake._timer = setTimeout(() => frame.classList.remove('player-hit-shake'), 390);
 }
 
 function updateUI() {

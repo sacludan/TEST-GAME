@@ -1,4 +1,4 @@
-/* 台北倖存者 V19.58 — 互動式劇情教學（第一章）：固定流程、指定操作、獨立於正式對戰。 */
+/* 台北倖存者 V19.59 — 劇情教學完整版：淡水 → 三重 → 立法院 → 神秘通訊。 */
 (function () {
   'use strict';
 
@@ -8,6 +8,8 @@
     active: false,
     step: 'off',
     enemy: null,
+    finalEnemy: null,
+    _blackoutTimer: null,
     lineIndex: 0,
     lines: [],
     onDialogueFinished: null,
@@ -18,6 +20,8 @@
     start() {
       this.active = true;
       this.step = 'blink';
+      this.finalEnemy = null;
+      clearTimeout(this._blackoutTimer);
       this.enemy = createCharacterEntity('yazhoutongshen', false, 'sanchong');
       this.enemy.equip.acc = { ...getSafeItem('party_card'), id: 'party_card' };
       this.enemy.bag = ['rusty_nail'];
@@ -95,7 +99,9 @@
     },
 
     promptSearch(which) {
-      this.step = which === 'stool' ? 'search_stool' : which === 'tofu' ? 'search_tofu' : 'search_enemy';
+      this.step = which === 'stool' ? 'search_stool'
+        : which === 'tofu' ? 'search_tofu'
+        : which === 'lai' ? 'search_lai' : 'search_enemy';
       this.guide('點擊畫面中的搜刮區域。', '#explore-panel');
     },
     async scriptedSearch(which) {
@@ -117,13 +123,24 @@
       if (prompt) prompt.classList.add('hidden');
       progress?.classList.add('hidden');
       if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
-      if (which === 'enemy') {
-        // 劇情指定遭遇，不走一般 65% 的隨機碰面判定。
-        if (startCombat(this.enemy)) {
-          this.say('桶神？為什麼要攻擊我？', () => {
-            this.fakeHit();
-            this.say('不行…無法溝通，吃我一擊！', () => this.promptAttack());
-          });
+      if (which === 'enemy' || which === 'lai') {
+        // 兩場劇情指定遭遇：不使用隨機碰面，也不讓 NPC 自行決策。
+        const target = which === 'lai' ? this.finalEnemy : this.enemy;
+        if (target && startCombat(target)) {
+          if (which === 'lai') {
+            this.say('就是你嗎…讓這世界混亂的傢伙！', () => {
+              this.storyHitToHp(1);
+              this.say([
+                '啊啊啊啊 幫我開直播！！',
+                '不行，現在不是說這個的時候了..吃我三槍！'
+              ], () => this.promptFinalSkill());
+            });
+          } else {
+            this.say('桶神？為什麼要攻擊我？', () => {
+              this.fakeHit();
+              this.say('不行…無法溝通，吃我一擊！', () => this.promptAttack());
+            });
+          }
         }
         return;
       }
@@ -182,14 +199,13 @@
         this.fakeHit();
         this.say('什麼？！這攻擊哪裡來的？', () => this.promptSearch('enemy'));
       } else {
-        this.finish();
+        this.arriveLegislature();
       }
     },
     fakeHit() {
       if (!this.active) return;
       state.player.hp = Math.max(1, state.player.hp - 8);
-      if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake();
-      if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
+      if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake(8);
       window.GameAudio?.playSfx?.('hurt');
       addLog('💥 一道突如其來的攻擊擊中了你！(-8 HP)', 'text-rose-300 font-bold');
       updateUI();
@@ -243,22 +259,102 @@
         '咦？這個聲音是…立法院？！'
       ], () => this.promptMap('ly'));
     },
-    finish() {
-      this.step = 'finished';
+    // 第二段：立法院。血量由劇情指定，與正式難度／NPC 攻擊公式完全分離。
+    storyHitToHp(targetHp) {
+      if (!this.active || !state.player) return;
+      const p = state.player;
+      const before = p.hp;
+      p.hp = Math.max(1, Math.min(p.hp - 1, targetHp));
+      const taken = Math.max(0, before - p.hp);
+      if (taken > 0) {
+        if (typeof triggerPlayerHitShake === 'function') triggerPlayerHitShake(taken);
+        window.GameAudio?.playSfx?.('hurt');
+        addLog(`💥 【劇情襲擊】你遭到猛烈攻擊，失去 ${taken} HP！`, 'text-rose-300 font-black');
+      }
+      updateUI();
+      if (state.inCombat) updateCombatUI();
+    },
+    arriveLegislature() {
+      this.finalEnemy = createCharacterEntity('laixiangde', false, 'ly');
+      this.finalEnemy.equip = { weapon:null, head:null, chest:null, arm:null, leg:null, acc:null };
+      this.finalEnemy.bag = [];
+      this.finalEnemy.stunRemain = 0;
+      this.finalEnemy.stealthRemain = 0;
+      state.ais.push(this.finalEnemy);
+      this.storyHitToHp(Math.max(1, Math.ceil(state.player.maxHp / 3)));
+      this.say('什麼….好強的攻擊！', () => this.promptSearch('lai'));
+    },
+    promptFinalSkill() {
+      // 第三次攻擊是劇情專用必勝「三槍」，仍消耗角色原技能 SP。
+      const p = state.player;
+      p.sp = Math.max(p.sp, p.skill.costSp);
+      p.stunRemain = 0;
+      p.skillCdRemain = 0;
+      this.step = 'skill_lai';
+      updateUI();
+      updateCombatUI();
+      this.guide('點擊紫色「三槍」技能，擊敗賴祥德。', '#btn-combat-skill');
+    },
+    async performFinalSkill() {
+      if (this.step !== 'skill_lai' || !this.finalEnemy?.alive || !state.player) return;
+      this.step = 'final_skill_anim';
       this.removeFocus();
       $('tutorial-hint')?.classList.add('hidden');
-      $('tutorial-ending')?.classList.remove('hidden');
+      const p = state.player;
+      const enemy = this.finalEnemy;
+      p.sp = Math.max(0, p.sp - p.skill.costSp);
+      p.skillCdRemain = p.skill.cd;
+      // 三次命中都要明確演出，第三下才擊敗。只用於教學，不影響正式傷害。
+      const initialHp = Math.min(enemy.maxHp, 42);
+      enemy.hp = initialHp;
+      updateUI(); updateCombatUI();
+      addLog('🔫 館長使出了【三槍】！', 'text-purple-300 font-black');
+      for (let i = 0; i < 3; i++) {
+        if (!this.active) return;
+        enemy.hp = Math.max(0, enemy.hp - 14);
+        if (typeof triggerCombatShake === 'function') triggerCombatShake('combat-panel');
+        if (typeof renderCombatDamageFloat === 'function') {
+          renderCombatDamageFloat($('enemy-hp-container'), '-14', i === 2);
+        }
+        window.GameAudio?.playSfx?.('hit');
+        updateCombatUI();
+        await delay(250);
+      }
+      if (!this.active) return;
+      enemy.alive = false;
+      p.killCount = (p.killCount || 0) + 1;
+      addLog('🏆 【劇情擊敗】賴祥德被館長的三槍擊倒！', 'text-amber-300 font-black');
+      await delay(580);
+      if (!this.active) return;
+      finishCombatTurn();
+      this.say('呼….', () => this.showBlackout());
+    },
+    showBlackout() {
+      this.step = 'final_blackout';
+      this.removeFocus();
+      $('tutorial-dialog')?.classList.add('hidden');
+      $('tutorial-hint')?.classList.add('hidden');
+      const overlay = $('tutorial-blackout');
+      overlay?.classList.remove('hidden');
+      requestAnimationFrame(() => { if (this.active && overlay) overlay.style.opacity = '1'; });
+      this._blackoutTimer = setTimeout(() => this.returnToLobby(), 4800);
+    },
+    returnToLobby() {
+      if (!this.active || this.step !== 'final_blackout') return;
+      clearTimeout(this._blackoutTimer);
+      this.active = false;
+      window.location.reload();
     },
 
     onClickCapture(e) {
       if (!this.active) return;
       const el = e.target;
-      if (this.step === 'finished' && el.closest('#tutorial-ending')) return;
+      if (this.step === 'final_blackout' && el.closest('#tutorial-final-return')) return;
       if (this.step === 'dialogue' && el.closest('#tutorial-dialog-next')) return;
       const intercept = () => { e.preventDefault(); e.stopImmediatePropagation(); };
-      if (this.step === 'search_stool' || this.step === 'search_tofu' || this.step === 'search_enemy') {
+      if (this.step === 'search_stool' || this.step === 'search_tofu' || this.step === 'search_enemy' || this.step === 'search_lai') {
         if (el.closest('#explore-panel') && !el.closest('button') && !el.closest('#target-tracker-box')) {
-          const which = this.step === 'search_stool' ? 'stool' : this.step === 'search_tofu' ? 'tofu' : 'enemy';
+          const which = this.step === 'search_stool' ? 'stool' : this.step === 'search_tofu' ? 'tofu' : this.step === 'search_lai' ? 'lai' : 'enemy';
           intercept(); this.scriptedSearch(which); return;
         }
       }
@@ -280,6 +376,9 @@
       }
       if (this.step === 'attack' && el.closest('#btn-combat-atk')) {
         intercept(); executeCombatAction('attack'); return;
+      }
+      if (this.step === 'skill_lai' && el.closest('#btn-combat-skill')) {
+        intercept(); this.performFinalSkill(); return;
       }
       if (this.step === 'corpse_loot') {
         const button = el.closest('button[onclick^="takeCorpseLoot"]');
