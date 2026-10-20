@@ -91,7 +91,7 @@ const RECIPES_DATA = {
     // ==========================================
     // ⚔️ 武器 (weapon)
     // ==========================================
-    { result: "mythic_stool",        materials: ["overlord_stool", "taiwan_value"],      desc: "霸王帶釘折凳 + 台灣價值 ＝ 弒神七武器之首(終極折凳)" },
+    { result: "mythic_stool",        materials: ["overlord_stool", "aluminum_bat"],      desc: "霸王帶釘折凳 + 鋁合金球棒 ＝ 弒神七武器之首(終極折凳)" },
     { result: "overlord_stool",      materials: ["iron_stool", "explosive_bomb"],        desc: "強化鐵皮折凳 + 土製高爆彈 ＝ 霸王帶釘折凳" },
     { result: "iron_stool",          materials: ["spiked_stool", "iron_plate"],          desc: "帶釘折凳 + 鐵板 ＝ 強化鐵皮折凳" },
     { result: "spiked_stool",        materials: ["plastic_stool", "rusty_nail"],         desc: "塑膠折凳 + 生鏽鐵釘 ＝ 帶釘折凳" },
@@ -115,7 +115,7 @@ const RECIPES_DATA = {
     // ==========================================
     // 🧤 手臂 (arm)
     // ==========================================
-    { result: "nano_arm",            materials: ["engineer_armor", "taiwan_value"],      desc: "竹科外骨骼護臂 + 台灣價值 ＝ 護國神山奈米機械臂" },
+    { result: "nano_arm",            materials: ["engineer_armor", "dash_cam"],         desc: "竹科外骨骼護臂 + 行車紀錄器 ＝ 護國神山奈米機械臂" },
     { result: "engineer_armor",      materials: ["engineer_wrist", "nano_wafer"],        desc: "工程師防靜電護腕 + 奈米晶圓 ＝ 竹科外骨骼護臂" },
     { result: "engineer_wrist",      materials: ["insulated_gloves", "battery"],         desc: "絕緣工地手套 + 電池 ＝ 工程師防靜電護腕" },
     { result: "insulated_gloves",    materials: ["cloth_gloves", "tape"],                desc: "粗布手套 + 膠帶 ＝ 絕緣工地手套" },

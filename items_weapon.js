@@ -35,7 +35,7 @@ const WEAPONS_DATA = {
     taichung_bat:         { id: "taichung_bat",         name: "台中球棒",                 type: "weapon", atk: 37, rarity: 4, score: 380, desc: "焊上暴改排氣管的傳奇球棒，後車廂必備的浪漫。" },
 
     // 🔴 5 階紅武
-    mythic_stool:         { id: "mythic_stool",         name: "弒神七武器之首(終極折凳)", type: "weapon", atk: 50, rarity: 5, score: 550, desc: "融合台灣價值與霸王折凳的終極神兵，神擋殺神！" }
+    mythic_stool:         { id: "mythic_stool",         name: "弒神七武器之首(終極折凳)", type: "weapon", atk: 50, rarity: 5, score: 550, desc: "融合鋁合金球棒與霸王折凳的終極神兵，神擋殺神！" }
   }
 };
 

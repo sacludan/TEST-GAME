@@ -36,7 +36,7 @@ const FOODS_DATA = {
     double_betel_nut:   { id: "double_betel_nut",   name: "雙倍特調檳榔",                     type: "food", hp: 20, sp: 65, rarity: 2, score: 65, desc: "抹上特製白灰的雙子星檳榔，瞬間回滿精神。" },
 
     // 🔵 3 階頂級補品（台灣價值同時為合成 5 階紅裝核心材料）
-    taiwan_value:       { id: "taiwan_value",       name: "台灣價值",                         type: "food", hp: 100, sp: 100, rarity: 3, score: 160, desc: "儲值滿滿的台灣價值！食用可巨量雙回，更是鍛造 5 階神裝的核心聖物。" },
+    taiwan_value:       { id: "taiwan_value",       name: "台灣價值",                         type: "food", hp: 100, sp: 100, rarity: 3, score: 160, desc: "儲值滿滿的台灣價值！食用可巨量雙回，也是合成滅世黨證的關鍵材料。" },
     energy_drink:       { id: "energy_drink",       name: "工地精神時光飲(保力達加莎莎亞)",   type: "food", hp: 60,  sp: 120, rarity: 3, score: 140, desc: "勞工界究極神飲配雙倍檳榔，體力瞬間突破極限！" },
     kavalan:            { id: "kavalan",            name: "頂級噶瑪蘭威士忌",                 type: "food", hp: 70,  sp: 110, rarity: 3, score: 145, desc: "享譽國際的台灣冠軍單一麥芽威士忌。" },
     sausage_in_sausage: { id: "sausage_in_sausage", name: "夜市大腸包小腸",                   type: "food", hp: 110, sp: 60,  rarity: 3, score: 140, desc: "碳烤香腸夾進糯米腸，夜市霸主級大補品。" },

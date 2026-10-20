@@ -138,7 +138,7 @@ const ARMORS_DATA = {
     riot_shield:        { id: "riot_shield",        name: "立院鎮暴裝甲盾",   type: "arm", def: 17, rarity: 4, score: 210, desc: "貼有黨證加持的重型鎮暴裝甲盾，絕對防禦。" },
     ice_sleeves:        { id: "ice_sleeves",        name: "阿嬤的防曬冰絲袖套",type: "arm", def: 15, rarity: 4, score: 195, desc: "阿嬤手鍊祈福過的頂級冰絲袖套，冰涼又抗揍。" },
     // 🔴 5 階
-    nano_arm:           { id: "nano_arm",           name: "護國神山奈米機械臂",type: "arm", def: 26, atk: 5, rarity: 5, score: 410, desc: "融合台灣價值與晶圓科技的傳說級奈米動力機械臂！" }
+    nano_arm:           { id: "nano_arm",           name: "護國神山奈米機械臂",type: "arm", def: 26, atk: 5, rarity: 5, score: 410, desc: "融合行車紀錄器與晶圓科技的傳說級奈米動力機械臂！" }
   }
 };
 
