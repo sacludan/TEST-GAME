@@ -154,6 +154,38 @@
       text-shadow: 0 2px 8px rgba(0,0,0,0.9);
     }
 
+
+    /* V19.52：戰鬥視窗佔據原探索畫布，立繪與裝備在手機內仍可完整顯示。 */
+    #combat-panel:not(.hidden) { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
+    #enemy-gear-grid > .enemy-gear-cell { min-width: 0; min-height: 0; position: relative; overflow: hidden; border-radius: 7px; border: 1.5px solid; background: rgba(15,23,42,.9); }
+    .enemy-gear-cell .gear-art { position:absolute; inset:3px; width:calc(100% - 6px); height:calc(100% - 6px); object-fit:contain; opacity:.94; }
+    .enemy-gear-cell .gear-name { position:absolute; bottom:0; left:0; right:0; padding:10px 1px 2px; background:linear-gradient(transparent,rgba(2,6,23,.97)); font-weight:900; font-size:8px; line-height:1.15; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 2px #000; }
+    .enemy-gear-cell .gear-icon { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:23px; opacity:.3; }
+    .enemy-gear-cell .gear-slot-label { position:absolute; top:1px; left:3px; font-size:8px; font-weight:800; color:#cbd5e1; text-shadow:0 1px 2px #020617; }
+
+    /* 命中後才播放的衝擊特效，不延後攻擊動作，也不擋住按鈕。 */
+    @keyframes combat-hit-number {
+      0% { opacity:0; transform:translate(-50%,-20%) scale(.55) rotate(-6deg); }
+      15% { opacity:1; transform:translate(-50%,-50%) scale(1.45) rotate(2deg); }
+      38% { transform:translate(-50%,-58%) scale(1.03) rotate(-1deg); }
+      75% { opacity:1; transform:translate(-50%,-85%) scale(1.07); }
+      100% { opacity:0; transform:translate(-50%,-130%) scale(.9); }
+    }
+    .combat-damage-float { position:absolute; z-index:6; left:50%; top:45%; font-weight:1000; text-align:center; font-family:system-ui,sans-serif; line-height:1; white-space:nowrap; color:#fff2b8; font-size:clamp(36px,12vw,62px); letter-spacing:-2px; -webkit-text-stroke:2px rgba(54,11,8,.98); text-shadow:3px 5px 0 rgba(42,8,3,.95),0 0 22px rgba(255,88,23,.7); animation:combat-hit-number .68s ease-out both; pointer-events:none; }
+    .combat-damage-float.critical { color:#ff4f35; font-size:clamp(47px,15vw,80px); -webkit-text-stroke:2.5px #250500; text-shadow:3px 5px 0 #340400,0 0 18px #ffae26; }
+    .combat-damage-float.missed { color:#b9edff; font-size:clamp(27px,9vw,44px); -webkit-text-stroke:1.5px #072b53; text-shadow:0 2px 9px #062a48; }
+    @keyframes combat-hit-ring { 0% {opacity:.85;transform:translate(-50%,-50%) scale(.15)} 100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)} }
+    .combat-hit-ring {position:absolute;z-index:4;left:50%;top:48%;width:75%;aspect-ratio:1;border-radius:50%;border:6px solid rgba(255,240,184,.9);box-shadow:0 0 20px 8px rgba(255,100,32,.55), inset 0 0 18px rgba(255,100,32,.65);animation:combat-hit-ring .42s ease-out both;pointer-events:none;}
+    .combat-hit-ring.critical {border-color:#ffdc70; box-shadow:0 0 28px 16px rgba(255,68,10,.75);}
+    @keyframes combat-target-jolt {0%,100%{transform:translate(0,0)} 24%{transform:translate(-3px,0)} 53%{transform:translate(4px,-2px)} 72%{transform:translate(-2px,1px)}}
+    #enemy-portrait.combat-target-jolt {animation:combat-target-jolt .23s ease-out both;}
+    @media (prefers-reduced-motion: reduce) {
+      .combat-damage-float {animation:combat-hit-number .2s ease-out both;}
+      .combat-hit-ring {display:none;}
+      #enemy-portrait.combat-target-jolt {animation:none;}
+      #combat-panel.animate-shake {animation:none;}
+    }
+
     #fps-blood-hit-overlay {
       pointer-events: none;
       position: absolute;
@@ -319,7 +351,7 @@
                 <span>角色選擇</span>
                 <span class="block text-[11px] text-amber-300 font-bold mt-0.5">目前：<span id="selected-char-inline">豬勾亮</span></span>
               </button>
-              <div class="text-[10px] text-slate-200/75 text-center">V19.49</div>
+              <div class="text-[10px] text-slate-200/75 text-center">V19.52</div>
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
@@ -523,31 +555,48 @@
         </div>
 
         <!-- 遭遇交鋒面板 -->
-        <div id="combat-panel" class="hidden bg-rose-950/70 border-2 border-rose-600 rounded-xl p-3 space-y-2.5 relative">
-          <div class="flex justify-between items-center border-b border-rose-800/80 pb-1.5">
-            <div>
-              <span id="combat-origin-label" class="text-[10px] bg-rose-600 text-white px-1.5 py-0.5 rounded font-black tracking-wide animate-pulse">! 遭遇對手 !</span>
-              <h3 id="enemy-name" class="text-base font-extrabold text-white mt-1">對手</h3>
-              <p id="enemy-stats" class="text-[11px] text-rose-200">攻擊 14 | 防禦 8</p>
+        <div id="combat-panel" class="hidden bg-slate-950/85 border-2 border-rose-700 rounded-xl p-2 relative shadow-xl" aria-label="遭遇戰鬥">
+          <div class="flex justify-between items-center border-b border-rose-900/80 pb-1.5 gap-2 shrink-0">
+            <div class="min-w-0">
+              <span id="combat-origin-label" class="text-[9px] bg-rose-700 text-white px-1.5 py-0.5 rounded font-black tracking-wide">! 搜刮遭遇 !</span>
+              <h3 id="enemy-name" class="text-[15px] font-black text-white mt-1 truncate">對手</h3>
+              <p id="enemy-stats" class="text-[10px] text-rose-200 truncate">攻擊 14 | 防禦 8</p>
             </div>
-            <div class="text-right">
-              <span class="text-[10px] text-amber-300 font-bold block">無視可留在原地，仍可能再次遭遇！</span>
-              <span id="enemy-hp-text" class="text-xs font-mono text-rose-300 font-bold">HP: 130/130</span>
+            <div class="text-right shrink-0">
+              <span id="enemy-level" class="text-[10px] text-amber-300 font-black block">Lv.1</span>
+              <span id="enemy-hp-text" class="text-xs font-mono text-rose-200 font-bold">HP: 130/130</span>
+              <div class="text-[9px] text-slate-400">無視不會離開本區</div>
             </div>
           </div>
 
-          <div id="enemy-hp-container" class="relative w-full bg-slate-800 h-2.5 rounded-full overflow-visible">
+          <div id="enemy-hp-container" class="relative w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-2 mb-2 shrink-0">
             <div id="enemy-hp-bar" class="bg-rose-500 h-full rounded-full bar-transition" style="width: 100%"></div>
           </div>
 
-          <div class="grid grid-cols-3 gap-2 pt-1">
-            <button id="btn-combat-atk" onclick="executeCombatAction('attack')" class="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black py-2.5 px-2 rounded-xl text-xs shadow-md transition flex flex-col items-center justify-center">
+          <!-- V19.52：遭遇瞬間直接展示敵方肖像及裝備，不插入任何等待動畫。 -->
+          <div id="enemy-visual-grid" class="grid grid-cols-[48%_minmax(0,1fr)] gap-2 min-h-0 flex-1">
+            <div id="enemy-hit-stage" class="relative min-h-0 overflow-hidden rounded-xl border border-slate-600/75 bg-slate-900/80" aria-label="對手角色立繪">
+              <div id="enemy-portrait-placeholder" class="absolute inset-0 flex items-center justify-center text-4xl text-slate-500">👤</div>
+              <img id="enemy-portrait" class="hidden absolute inset-0 w-full h-full object-contain object-bottom select-none pointer-events-none" alt="對手立繪" decoding="async" draggable="false" style="filter:drop-shadow(0 7px 10px rgba(0,0,0,.7))" />
+              <div class="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-950/95 to-transparent pointer-events-none"></div>
+              <div id="enemy-portrait-caption" class="absolute bottom-1 left-1 right-1 text-[10px] text-center font-black text-slate-100 truncate drop-shadow-lg pointer-events-none">對手</div>
+              <div id="enemy-hit-fx-layer" class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true"></div>
+            </div>
+            <div class="min-h-0 flex flex-col gap-1" aria-label="對手身上的裝備">
+              <div class="text-[10px] text-amber-200 font-black text-center shrink-0">對手裝備</div>
+              <div id="enemy-gear-grid" class="grid grid-cols-3 grid-rows-2 gap-1 flex-1 min-h-0" aria-label="對手六格裝備"></div>
+              <div class="text-[9px] text-slate-400 text-center leading-tight shrink-0">框色表示裝備稀有度</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-1.5 pt-2 shrink-0">
+            <button id="btn-combat-atk" onclick="executeCombatAction('attack')" class="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black py-2.5 px-1 rounded-xl text-xs shadow-md transition flex flex-col items-center justify-center">
               <span>⚔️ 攻擊</span>
             </button>
-            <button id="btn-combat-skill" onclick="executeCombatAction('skill')" class="bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black py-2.5 px-2 rounded-xl text-xs shadow-md transition flex flex-col items-center justify-center">
+            <button id="btn-combat-skill" onclick="executeCombatAction('skill')" class="bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black py-2.5 px-1 rounded-xl text-xs shadow-md transition flex flex-col items-center justify-center">
               <span>✨ 技能</span>
             </button>
-            <button id="btn-combat-flee" onclick="executeCombatAction('ignore')" class="bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-200 font-bold py-2.5 px-2 rounded-xl text-xs shadow-md transition flex flex-col items-center justify-center">
+            <button id="btn-combat-flee" onclick="executeCombatAction('ignore')" class="bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-200 font-bold py-2.5 px-1 rounded-xl text-xs shadow-md transition flex flex-col items-center justify-center">
               <span>🙈 無視</span>
             </button>
           </div>
@@ -893,7 +942,7 @@
   <script src="growth.js?v=119"></script>
   <script src="lobby.js?v=1944"></script>
   <script src="ai.js?v=1948"></script>
-  <script src="combat.js?v=1945"></script>
+  <script src="combat.js?v=1952"></script>
   <script src="main.js?v=1948"></script>
   <script src="growth_ui.js?v=117"></script>
   <script src="audio_manager.js?v=1948"></script>

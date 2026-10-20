@@ -27,18 +27,120 @@ function estimateAverageCombatDamage(attacker, defender) {
   return base * (0.75 + 0.25 * 1.6);
 }
 
-// 主程式沒有提供傷害飄字函式；補上並保持純顯示效果，
-// 即使動畫容器不存在，也不能中斷扣血和結束戰鬥的流程。
-function renderCombatDamageFloat(container, value, isCrit = false) {
-  if (!container || typeof document === "undefined") return;
-  const tag = document.createElement("span");
-  tag.className = `floating-dmg-tag ${isCrit ? "text-amber-300 text-lg" : "text-white text-base"}`;
+// V19.52：敵人肖像及六格裝備直接顯示在戰鬥面板，零等待動畫。
+// 只在裝備有變化或切換敵人時重建格子，避免每秒重新載入圖片。
+const COMBAT_EQUIPMENT_SLOTS = [
+  { key:'weapon', label:'武器', icon:'⚔️' }, { key:'head', label:'頭部', icon:'🪖' },
+  { key:'chest', label:'衣服', icon:'👕' }, { key:'arm', label:'手部', icon:'🧤' },
+  { key:'leg', label:'腿部', icon:'👟' }, { key:'acc', label:'飾品', icon:'💍' }
+];
+const COMBAT_GEAR_COLORS = [null, '#64748b', '#10b981', '#38bdf8', '#fbbf24', '#fb7185'];
+let previousCombatGearSignature = '';
+
+function updateEnemyPortrait(ai) {
+  const portrait = document.getElementById('enemy-portrait');
+  const fallback = document.getElementById('enemy-portrait-placeholder');
+  const caption = document.getElementById('enemy-portrait-caption');
+  if (caption) caption.textContent = ai.name;
+  if (!portrait) return;
+  if (portrait.dataset.enemyId === ai.id) return;
+  portrait.dataset.enemyId = ai.id;
+  portrait.classList.add('hidden');
+  if (fallback) fallback.classList.remove('hidden');
+  const artPath = (typeof LobbyManager !== 'undefined' && LobbyManager.characterArtworkPaths)
+    ? LobbyManager.characterArtworkPaths[ai.id] : null;
+  if (!artPath) { portrait.removeAttribute('src'); return; }
+  portrait.onload = () => {
+    if (portrait.dataset.enemyId !== ai.id) return;
+    if (portrait.naturalWidth) {
+      portrait.classList.remove('hidden');
+      fallback?.classList.add('hidden');
+    }
+  };
+  portrait.onerror = () => {
+    portrait.classList.add('hidden');
+    fallback?.classList.remove('hidden');
+  };
+  portrait.src = artPath;
+  // Complete cache-hit images might not dispatch another load event.
+  if (portrait.complete && portrait.naturalWidth > 0) portrait.onload();
+}
+
+function renderEnemyEquipment(ai) {
+  const grid = document.getElementById('enemy-gear-grid');
+  if (!grid) return;
+  const signature = ai.id + '|' + COMBAT_EQUIPMENT_SLOTS
+    .map(slot => (ai.equip?.[slot.key]?.id || '-')).join('|');
+  if (signature === previousCombatGearSignature && grid.children.length === 6) return;
+  previousCombatGearSignature = signature;
+  const fragment = document.createDocumentFragment();
+  for (const slot of COMBAT_EQUIPMENT_SLOTS) {
+    const item = ai.equip?.[slot.key] || null;
+    const cell = document.createElement('div');
+    cell.className = 'enemy-gear-cell';
+    cell.style.borderColor = item ? COMBAT_GEAR_COLORS[Math.max(1, Math.min(5, Number(item.rarity) || 1))] : '#475569';
+    cell.title = item ? `${slot.label}：${item.name}` : `${slot.label}：未裝備`;
+    cell.setAttribute('aria-label', cell.title);
+    const slotLabel = document.createElement('span');
+    slotLabel.className = 'gear-slot-label';
+    slotLabel.textContent = slot.label;
+    cell.appendChild(slotLabel);
+    if (item) {
+      const source = typeof getItemArtUrl === 'function' ? getItemArtUrl(item.id) : '';
+      if (source) {
+        const img = document.createElement('img');
+        img.className = 'gear-art';
+        img.src = source;
+        img.alt = item.name;
+        img.loading = 'eager';
+        img.decoding = 'async';
+        img.draggable = false;
+        img.onerror = () => img.remove();
+        cell.appendChild(img);
+      }
+      const name = document.createElement('span');
+      name.className = 'gear-name';
+      name.textContent = item.name || '裝備';
+      name.style.color = COMBAT_GEAR_COLORS[Math.max(1, Math.min(5, Number(item.rarity) || 1))];
+      cell.appendChild(name);
+    } else {
+      const blankIcon = document.createElement('div');
+      blankIcon.className = 'gear-icon';
+      blankIcon.textContent = slot.icon;
+      cell.appendChild(blankIcon);
+    }
+    fragment.appendChild(cell);
+  }
+  grid.replaceChildren(fragment);
+}
+
+// 飄字和光圈僅在命中時才出現，搜尋遭遇沒有動畫等待。
+function renderCombatDamageFloat(container, value, isCrit = false, missed = false) {
+  const layer = document.getElementById('enemy-hit-fx-layer') || container;
+  if (!layer || typeof document === 'undefined') return;
+  // 攻擊有時是三連擊，保留已播放中的飄字但限制同時存在數量。
+  while (layer.querySelectorAll('.combat-damage-float').length >= 4) {
+    layer.querySelector('.combat-damage-float')?.remove();
+  }
+  const tag = document.createElement('span');
+  tag.className = 'combat-damage-float' + (isCrit ? ' critical' : '') + (missed ? ' missed' : '');
   tag.textContent = String(value);
-  tag.style.left = "50%";
-  tag.style.top = "-10px";
-  tag.style.transform = "translateX(-50%)";
-  container.appendChild(tag);
-  setTimeout(() => { if (tag.isConnected) tag.remove(); }, 800);
+  layer.appendChild(tag);
+  tag.addEventListener('animationend', () => tag.remove(), { once: true });
+  setTimeout(() => tag.remove(), 780);
+  if (missed || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const ring = document.createElement('span');
+  ring.className = 'combat-hit-ring' + (isCrit ? ' critical' : '');
+  layer.appendChild(ring);
+  ring.addEventListener('animationend', () => ring.remove(), { once: true });
+  setTimeout(() => ring.remove(), 500);
+  const portrait = document.getElementById('enemy-portrait');
+  if (portrait && !portrait.classList.contains('hidden')) {
+    portrait.classList.remove('combat-target-jolt');
+    void portrait.offsetWidth;
+    portrait.classList.add('combat-target-jolt');
+    setTimeout(() => portrait.classList.remove('combat-target-jolt'), 240);
+  }
 }
 
 
@@ -60,7 +162,10 @@ function startCombat(targetAI, initiatedByAI = false) {
   if (encounterLabel) encounterLabel.textContent = initiatedByAI ? '🚨 敵人主動突襲！' : '! 搜刮遭遇 !';
   // 玩家主動搜刮發現敵人才會進入遭遇；不附贈任何一方的攻擊。
   addLog(`💥 【搜刮遭遇！】你發現了 ${enemy.name}，可以攻擊、施放技能或選擇無視！`, 'text-amber-300 font-bold');
-  if (!state.gameOver) updateUI();
+  if (!state.gameOver) {
+    updateUI();
+    updateCombatUI();
+  }
   return true;
 }
 
@@ -78,6 +183,12 @@ function updateCombatUI() {
   if (enemyStatsEl) {
     enemyStatsEl.textContent = `攻擊 ${getTotalAtk(ai)} | 防禦 ${getTotalDef(ai)} • 被動:${ai.passive ? ai.passive.name : '無'}`;
   }
+
+  // 外觀與裝備資訊不影響 NPC 戰鬥邏輯，也不會洩漏 NPC 背包材料。
+  updateEnemyPortrait(ai);
+  renderEnemyEquipment(ai);
+  const levelEl = document.getElementById('enemy-level');
+  if (levelEl && typeof getGrowthLevel === 'function') levelEl.textContent = `Lv.${getGrowthLevel(ai)}`;
 
   const enemyHpBar = document.getElementById("enemy-hp-bar");
   if (enemyHpBar) enemyHpBar.style.width = `${Math.max(0, (ai.hp / ai.maxHp) * 100)}%`;
@@ -253,13 +364,18 @@ function applyDamageToTarget(attacker, defender, rawDamage, isCrit = false, labe
   const enemyHpContainer = document.getElementById("enemy-hp-container");
   const result = resolveCombatHit(attacker, defender, rawDamage);
   if (result.dodged) {
-    try { renderCombatDamageFloat(enemyHpContainer, "MISS", false); } catch (err) { console.warn("Damage display failed:", err); }
+    if (defender === state.ai && attacker === state.player) {
+      try { renderCombatDamageFloat(enemyHpContainer, "MISS", false, true); } catch (err) { console.warn("Damage display failed:", err); }
+    }
     addLog(`💨 【問A答B】${defender.name} 閃避了${label}！`, "text-sky-300 font-bold");
     return 0;
   }
   if (result.damage <= 0) return 0;
-  triggerCombatShake("combat-panel");
-  try { renderCombatDamageFloat(enemyHpContainer, `-${result.damage}`, isCrit); } catch (err) { console.warn("Damage display failed:", err); }
+  // 只有對玩家顯示的敵人才播放大傷害飄字，NPC 互毆不會刷畫面。
+  if (defender === state.ai && attacker === state.player) {
+    triggerCombatShake("combat-panel");
+    try { renderCombatDamageFloat(enemyHpContainer, `-${result.damage}`, isCrit); } catch (err) { console.warn("Damage display failed:", err); }
+  }
   if (attacker === state.player && window.GameAudio?.playSfx) {
     window.GameAudio.playSfx('hit');
   }
@@ -477,5 +593,8 @@ function finishCombatTurn() {
   state.inCombat = false;
   state.ai = null;
   combatActionBusy = false;
+  previousCombatGearSignature = '';
+  const layer = document.getElementById('enemy-hit-fx-layer');
+  if (layer) layer.replaceChildren();
   updateUI();
 }
