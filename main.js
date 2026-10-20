@@ -794,7 +794,7 @@ function gameTick() {
         // 最終決戰公平地對所有角色生效，原有補血與免死能力仍能發揮。
         const damage = 12;
         if (state.player.alive) {
-          state.player.hp = Math.max(0, state.player.hp - damage - (state.closedZones.includes(state.player.zone) ? 12 : 0));
+          state.player.hp = Math.max(0, state.player.hp - applyEasyPlayerDamageReduction(damage + (state.closedZones.includes(state.player.zone) ? 12 : 0), state.player));
           if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
           if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
         }
@@ -812,8 +812,9 @@ function gameTick() {
           else ai.alive = false;
         });
       } else if (state.closedZones.includes(state.player.zone)) {
-        state.player.hp = Math.max(0, state.player.hp - 12);
-        addLog('⚡ 警告！你位於禁區內，遭到高壓電流轟擊 (-12 HP)！請立刻移動！', 'text-rose-500 font-black');
+        const zoneDamage = applyEasyPlayerDamageReduction(12, state.player);
+        state.player.hp = Math.max(0, state.player.hp - zoneDamage);
+        addLog(`⚡ 警告！你位於禁區內，遭到高壓電流轟擊 (-${zoneDamage} HP)！請立刻移動！`, 'text-rose-500 font-black');
         if (window.GameAudio?.playSfx) window.GameAudio.playSfx('hurt');
         if (typeof triggerBloodScreenEffect === 'function') triggerBloodScreenEffect();
         if (state.player.hp <= 0) {

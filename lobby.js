@@ -222,6 +222,12 @@ const LobbyManager = {
     if (modal) modal.classList.add('hidden');
   },
 
+  openFirstTimeTutorial() {
+    this.closeDifficultyModal();
+    // 教學劇情尚未實作，先導向清楚標示的入口，不假裝已開始對戰。
+    this.openTutorialModal();
+  },
+
   startNormalGameWithDifficulty(difficulty) {
     this.selectDifficulty(difficulty);
     this.startGame('normal');

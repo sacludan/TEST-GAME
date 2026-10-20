@@ -308,6 +308,14 @@ function castNonCombatActiveSkill() {
  * 玩家 / NPC 共用的傷害與被動結算。此函式不碰 DOM、不處理 UI。
  * 被擊倒的最終淘汰交由各自的戰鬥流程處理，避免 NPC 互毆誤開玩家面板。
  */
+// V19.57：簡單模式僅玩家受傷減半（含反傷）；NPC 對戰與測試模式不變。
+function applyEasyPlayerDamageReduction(amount, target) {
+  const hit = Math.max(0, Math.round(Number(amount) || 0));
+  if (hit === 0) return 0;
+  return target === state.player && DEV_CONFIG.mode === 'normal' && DEV_CONFIG.aiDifficulty === 'easy'
+    ? Math.max(1, Math.ceil(hit / 2)) : hit;
+}
+
 function resolveCombatHit(attacker, defender, rawDamage) {
   const result = { damage: 0, dodged: false, reflected: 0, heal: 0, guan: false };
   if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
@@ -331,12 +339,14 @@ function resolveCombatHit(attacker, defender, rawDamage) {
   const shielding = defender.reflectRemain > 0;
   let damage = shielding ? Math.max(1, Math.round(rawHit * 0.5)) : rawHit;
   if (songDefenseBuff) damage = Math.max(1, Math.round(damage * 0.9));
+  damage = applyEasyPlayerDamageReduction(damage, defender);
   defender.hp = Math.max(0, defender.hp - damage);
   result.damage = damage;
   if (shielding && (defender.reflectCharges || 0) > 0) {
     defender.reflectCharges--;
     // 反彈也屬戰鬥傷害，若豬哥亮為反彈承受者且開秀增益有效，同樣減傷 10%。
-    const reflectDamage = songAttackBuff ? Math.max(1, Math.round(rawHit * 0.9)) : rawHit;
+    const reflectRawDamage = songAttackBuff ? Math.max(1, Math.round(rawHit * 0.9)) : rawHit;
+    const reflectDamage = applyEasyPlayerDamageReduction(reflectRawDamage, attacker);
     attacker.hp = Math.max(0, attacker.hp - reflectDamage);
     result.reflected = reflectDamage;
   }

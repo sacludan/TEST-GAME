@@ -312,8 +312,9 @@
     <div id="fps-blood-hit-overlay"></div>
 
     <!-- V19.45 音樂音量面板：不影響遊戲操作，首次須由使用者操作播放 -->
-    <div id="audio-settings-panel" role="group" aria-label="音樂設定" class="hidden absolute top-12 right-3 z-[70] w-[216px] rounded-xl border border-slate-600 bg-slate-950/95 shadow-2xl p-3 space-y-2 text-left" onclick="event.stopPropagation()">
-      <div class="text-xs font-black text-slate-100">🎧 黑暗生存配樂</div>
+    <div id="audio-settings-panel" role="group" aria-label="音樂設定" class="hidden absolute inset-0 z-[80] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-5 text-left" style="z-index:80" onclick="event.stopPropagation()">
+      <div class="w-full max-w-[330px] rounded-3xl border border-slate-600 bg-slate-900/95 shadow-2xl p-5 space-y-4">
+      <h2 class="text-base font-black text-slate-100 text-center">⚙️ 音效設定</h2>
       <label for="audio-volume" class="block text-[11px] text-slate-300">背景音樂音量 <span id="audio-volume-label">30%</span></label>
       <input id="audio-volume" type="range" min="0" max="100" value="30" oninput="GameAudio.setVolume(this.value)" class="w-full accent-indigo-400" aria-label="背景音樂音量">
       <div class="flex gap-2">
@@ -329,14 +330,14 @@
         <input id="audio-sfx-volume" type="range" min="0" max="100" value="75" oninput="GameAudio.setSfxVolume(this.value)" class="w-full accent-amber-400" aria-label="遊戲音效音量">
         <button type="button" onclick="GameAudio.previewPickup()" class="w-full bg-amber-800/70 border border-amber-500/40 rounded-lg py-1.5 text-[11px] font-bold text-amber-100">🔔 試播拾獲叮聲</button>
       </div>
-      <button type="button" onclick="GameAudio.closePanel()" class="w-full text-center text-[10px] text-slate-400 hover:text-white">關閉設定</button>
+      <button type="button" onclick="GameAudio.closePanel()" class="w-full bg-slate-700 hover:bg-slate-600 rounded-xl py-3 text-sm font-bold text-slate-100">返回首頁</button>
+      </div>
     </div>
 
     <!-- 1. 遊戲主大廳畫面 -->
     <div id="lobby-screen" class="absolute inset-0 bg-slate-950 z-50 overflow-hidden">
       <img src="assets/ui/lobby_bg_taipei_survivor_v2.jpg" alt="首頁背景" draggable="false" class="absolute inset-0 h-full w-full object-cover object-center pointer-events-none select-none" style="-webkit-user-drag:none;" />
 
-      <button id="audio-button-lobby" type="button" onclick="GameAudio.togglePanel()" aria-label="音樂設定" title="音樂設定" class="absolute top-3 right-3 z-20 bg-slate-900/80 border border-slate-600 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold hover:bg-slate-800">🎵</button>
 
       <div class="relative z-10 flex h-full flex-col px-4 pt-5 pb-4">
         <div class="flex-1"></div>
@@ -360,12 +361,12 @@
                 <span>角色選擇</span>
                 <span class="block text-[11px] text-amber-300 font-bold mt-0.5">目前：<span id="selected-char-inline">豬勾亮</span></span>
               </button>
-              <div class="text-[10px] text-slate-200/75 text-center">V19.55</div>
+              <div class="text-[10px] text-slate-200/75 text-center">V19.57</div>
             </div>
 
-            <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
-              <span class="text-2xl leading-none">📖</span>
-              <span class="text-[11px] font-black">教學模式</span>
+            <button onclick="GameAudio.togglePanel()" aria-label="音效設定" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
+              <span class="text-2xl leading-none">⚙️</span>
+              <span class="text-[11px] font-black">設定</span>
             </button>
           </div>
         </div>
@@ -374,17 +375,21 @@
       <div id="difficulty-select-modal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-[55] flex items-center justify-center p-6">
         <div class="w-full max-w-[320px] rounded-3xl border border-slate-700 bg-slate-900/95 p-5 shadow-2xl space-y-4 text-left" onclick="event.stopPropagation()">
           <div class="text-center space-y-1">
-            <div class="text-sm font-black text-white">選擇電腦難度</div>
-            <div class="text-[11px] text-slate-400">開始遊戲前選一個難度，之後會直接進入對戰。</div>
+            <div class="text-base font-black text-white">選擇遊戲模式</div>
+            <div class="text-[11px] text-slate-400">選擇初次遊玩，或直接開始生存戰。</div>
           </div>
           <div class="grid grid-cols-1 gap-2.5">
+            <button type="button" onclick="LobbyManager.openFirstTimeTutorial()" class="rounded-2xl border border-sky-500 bg-sky-950/75 px-4 py-3.5 text-left active:scale-[0.98]">
+              <div class="text-sm font-black text-sky-200">📖 初次遊玩</div>
+              <div class="text-[11px] text-sky-300/90 mt-1">進入新手教學入口（劇情教學開發中）</div>
+            </button>
             <button type="button" onclick="LobbyManager.startNormalGameWithDifficulty('easy')" class="rounded-2xl border border-emerald-500 bg-emerald-950/80 px-4 py-3.5 text-left active:scale-[0.98]">
-              <div class="text-sm font-black text-emerald-200">🌱 簡單</div>
-              <div class="text-[11px] text-emerald-300/90 mt-1">較適合熟悉遊戲流程，壓力比較小。</div>
+              <div class="text-sm font-black text-emerald-200">🌱 簡單模式</div>
+              <div class="text-[11px] text-emerald-300/90 mt-1">玩家受到的傷害減少 50%，適合練習生存。</div>
             </button>
             <button type="button" onclick="LobbyManager.startNormalGameWithDifficulty('hard')" class="rounded-2xl border border-rose-500 bg-rose-950/70 px-4 py-3.5 text-left active:scale-[0.98]">
-              <div class="text-sm font-black text-rose-200">🔥 困難</div>
-              <div class="text-[11px] text-rose-300/90 mt-1">電腦更積極發育、也更常使用技能。</div>
+              <div class="text-sm font-black text-rose-200">🔥 困難模式</div>
+              <div class="text-[11px] text-rose-300/90 mt-1">玩家承受正常傷害，電腦更積極發育與使用技能。</div>
             </button>
           </div>
           <button type="button" onclick="LobbyManager.closeDifficultyModal()" class="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-black text-slate-200 active:scale-95">取消</button>
@@ -451,8 +456,8 @@
       <!-- 教學模式佔位彈窗 -->
       <div id="tutorial-coming-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-end p-4 pb-5 text-left">
         <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl space-y-3">
-          <div class="text-lg font-black text-sky-300">📖 教學模式</div>
-          <div class="text-sm text-slate-300">這個模式之後會補，目前先預留按鈕位置給你安排首頁美術。</div>
+          <div class="text-lg font-black text-sky-300">📖 初次遊玩</div>
+          <div class="text-sm text-slate-300">劇情教學正在製作中，之後會帶你逐步學會搜刮、合成、戰鬥及逃離禁區。你現在可以先選「簡單模式」練習。</div>
           <button onclick="LobbyManager.closeTutorialModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-100 font-black rounded-xl text-sm transition">知道了</button>
         </div>
       </div>
@@ -978,12 +983,12 @@
   <script src="game_config.js?v=60"></script>
   
   <script src="growth.js?v=119"></script>
-  <script src="lobby.js?v=1944"></script>
+  <script src="lobby.js?v=1957"></script>
   <script src="ai.js?v=1953"></script>
-  <script src="combat.js?v=1953"></script>
-  <script src="main.js?v=1954"></script>
+  <script src="combat.js?v=1957"></script>
+  <script src="main.js?v=1957"></script>
   <script src="corpse.js?v=1953"></script>
   <script src="growth_ui.js?v=117"></script>
-  <script src="audio_manager.js?v=1954"></script>
+  <script src="audio_manager.js?v=1956"></script>
 </body>
 </html>
