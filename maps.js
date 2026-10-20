@@ -15,7 +15,7 @@ const MAPS_DATA = {
     // 🌊 北部區域
     {
       id: "tamsui", name: "淡水老街", icon: "🚢", x: 15, y: 11,
-      drops: expandDrops({grandpa_boxers: 4, sun_hat: 4, light_raincoat: 5, iron_pot: 3, egg: 4, tofu: 4, soy_sauce: 4, red_thread: 4, fake_gold_chain: 3, straw_sandals: 3, rice: 3, rusty_cleaver: 3})
+      drops: expandDrops({grandpa_boxers: 4, sun_hat: 4, light_raincoat: 5, iron_pot: 3, egg: 4, tofu: 4, soy_sauce: 4, red_thread: 4, fake_gold_chain: 3, straw_sandals: 3, rice: 3, rusty_cleaver: 3, plastic_stool: 2})
     },
     {
       id: "taipeistation", name: "台北車站", icon: "🚉", x: 46, y: 48,
@@ -23,7 +23,7 @@ const MAPS_DATA = {
     },
     {
       id: "beitou", name: "北投溫泉", icon: "♨️", x: 40, y: 14,
-      drops: expandDrops({dirty_towel: 6, water: 7, grandpa_boxers: 5, white_slippers: 5, egg: 5, whiskey: 3, cooking_wine: 5, sun_jacket: 3, sun_hat: 3, convenience_umbrella: 3})
+      drops: expandDrops({dirty_towel: 6, water: 7, grandpa_boxers: 5, white_slippers: 5, egg: 5, whiskey: 3, cooking_wine: 5, sun_jacket: 3, sun_hat: 3, convenience_umbrella: 3, yellow_vest: 1})
     },
 
     {
@@ -46,7 +46,7 @@ const MAPS_DATA = {
     },
     {
       id: "shilin", name: "士林夜市", icon: "🍢", x: 51, y: 30,
-      drops: expandDrops({plastic_stool: 7, iron_pot: 5, rusty_cleaver: 4, pork: 6, tofu: 5, egg: 6, garlic: 6, soy_sauce: 4, plastic_bag: 7, dirty_bracelet: 4, white_slippers: 4, cooking_wine: 3, red_thread: 3, bandage: 3, shirt: 3})
+      drops: expandDrops({plastic_stool: 10, iron_pot: 5, rusty_cleaver: 4, pork: 6, tofu: 5, egg: 6, garlic: 6, soy_sauce: 4, plastic_bag: 7, dirty_bracelet: 4, white_slippers: 4, cooking_wine: 3, red_thread: 3, bandage: 3, shirt: 3, yellow_vest: 1})
     },
     {
       id: "neihu", name: "內湖科學園區", icon: "🖥️", x: 78, y: 36,
@@ -60,7 +60,7 @@ const MAPS_DATA = {
     },
     {
       id: "ntu_hospital", name: "台大醫院", icon: "🏥", x: 43, y: 62,
-      drops: expandDrops({bandage: 11, condom: 4, water: 5, expired_milk: 3, reading_glasses: 4, rubber_gloves: 6, robe: 4, white_slippers: 4, paper: 6, pen: 4})
+      drops: expandDrops({bandage: 11, condom: 4, water: 5, expired_milk: 3, reading_glasses: 4, rubber_gloves: 6, robe: 4, white_slippers: 4, paper: 6, pen: 4, book: 1})
     },
     {
       id: "taipeiarena", name: "台北大巨蛋", icon: "🏟️", x: 67, y: 63,
@@ -74,7 +74,7 @@ const MAPS_DATA = {
     // 🏛️ 立法院
     {
       id: "ly", name: "立法院", icon: "🏛️", x: 52, y: 74,
-      drops: expandDrops({protest_megaphone: 4, plastic_stool: 7, netizen_cert: 8, paper: 8, pen: 7, red_pen: 3, money: 10, newspaper: 5, shirt: 5, yellow_vest: 3, water: 5, book: 2})
+      drops: expandDrops({protest_megaphone: 4, netizen_cert: 8, paper: 8, pen: 7, red_pen: 3, money: 10, newspaper: 5, shirt: 5, water: 5})
     },
 
     // 🏮 中南段城區
@@ -89,11 +89,11 @@ const MAPS_DATA = {
 
     {
       id: "market", name: "果菜批發市場", icon: "🥬", x: 19, y: 84,
-      drops: expandDrops({rice: 8, pork: 7, tofu: 6, egg: 7, garlic: 7, betel_nut: 5, quicklime: 6, polydar: 5, yellow_vest: 4, plastic_bag: 7, deed: 1, cooking_wine: 2, melon_helmet: 3, plastic_stool: 3})
+      drops: expandDrops({rice: 8, pork: 7, tofu: 6, egg: 7, garlic: 7, betel_nut: 5, quicklime: 6, polydar: 5, yellow_vest: 5, plastic_bag: 7, deed: 1, cooking_wine: 2, melon_helmet: 3, plastic_stool: 5})
     },
     {
       id: "ntu", name: "台大校園", icon: "🎓", x: 50, y: 86,
-      drops: expandDrops({book: 8, paper: 8, pen: 8, red_pen: 4, love_pointer: 4, shirt: 6, wooden_stick: 3, sports_shorts: 6, box_cutter: 4, expired_milk: 3, battery: 2, dirty_bracelet: 3, bandage: 2, cloth_gloves: 3})
+      drops: expandDrops({book: 9, paper: 8, pen: 8, red_pen: 4, love_pointer: 4, shirt: 6, wooden_stick: 3, sports_shorts: 6, box_cutter: 4, expired_milk: 3, battery: 2, dirty_bracelet: 3, bandage: 2, cloth_gloves: 3})
     },
     {
       id: "xinyi", name: "信義夜店區", icon: "🥂", x: 80, y: 89,
