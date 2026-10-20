@@ -224,8 +224,7 @@ const LobbyManager = {
 
   openFirstTimeTutorial() {
     this.closeDifficultyModal();
-    // 教學劇情尚未實作，先導向清楚標示的入口，不假裝已開始對戰。
-    this.openTutorialModal();
+    this.startGame('tutorial');
   },
 
   startNormalGameWithDifficulty(difficulty) {
@@ -343,7 +342,9 @@ const LobbyManager = {
     if (gameScreen) gameScreen.classList.remove("hidden");
 
     if (typeof initGame === "function") {
-      initGame(mode, this.selectedPlayerId, [...this.selectedTestBotIds], this.selectedDifficulty);
+      initGame(mode, mode === 'tutorial' ? 'chenaguan' : this.selectedPlayerId,
+        mode === 'tutorial' ? [] : [...this.selectedTestBotIds], this.selectedDifficulty);
+      if (mode === 'tutorial' && window.TutorialMode) window.TutorialMode.start();
     } else {
       console.error("找不到 initGame 函式！");
     }

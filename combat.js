@@ -584,6 +584,13 @@ function handleUnitDefeat(victim, killer) {
     return;
   }
 
+  if (DEV_CONFIG.mode === 'tutorial' && victim !== state.player) {
+    finishCombatTurn();
+    if (corpse) openCorpseLoot(corpse.id, true);
+    if (window.TutorialMode?.onEnemyDefeated) window.TutorialMode.onEnemyDefeated(corpse);
+    return;
+  }
+
   const remainAIs = state.ais.filter(a => a.alive);
   addLog(`🏆 【淘汰對手】你成功擊倒了 【${victim.name}】！（剩餘對手：${remainAIs.length} 人）`, "text-amber-400 font-black");
 

@@ -545,7 +545,7 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   DEV_CONFIG.mode = mode;
   DEV_CONFIG.aiDifficulty = aiDifficulty === "hard" ? "hard" : "easy";
   DEV_CONFIG.enableShrink = (mode === "normal");
-  DEV_CONFIG.enableNPC = (mode !== "sandbox");
+  DEV_CONFIG.enableNPC = (mode !== "sandbox" && mode !== "tutorial");
 
   state.timeSec = 0;
   state.aiTimeSec = 0;
@@ -591,7 +591,7 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   }
 
   const zones = getSafeZones();
-  const startZone = zones.find(z => z.id === "ly") || zones[0];
+  const startZone = zones.find(z => z.id === (mode === 'tutorial' ? 'tamsui' : 'ly')) || zones[0];
 
   state.player = createCharacterEntity(selectedCharId, true, startZone.id);
 
@@ -624,7 +624,9 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   const logEl = document.getElementById("game-log");
   if (logEl) logEl.innerHTML = "";
 
-  if (mode === "sandbox") {
+  if (mode === "tutorial") {
+    addLog('📖 【劇情教學】請依照指示操作，完成第一段生存故事。', 'text-sky-300 font-bold');
+  } else if (mode === "sandbox") {
     addLog("🔧 【測試模式】全島 22 區與圖鑑已就緒（無縮圈、無電腦對手）。", "text-emerald-400 font-bold");
   } else if (mode === "char_test") {
     addLog(`🏛️ 【立法院角色測試】已放入 ${state.ais.length} 位電腦對手，點擊探索面板即可搜刮或遇敵！`, "text-indigo-300 font-bold");

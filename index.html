@@ -303,7 +303,16 @@
     #battle-report-overlay #game-log {
       text-shadow: 0 1px 2px rgba(0, 0, 0, .68);
     }
-  </style>
+  
+    /* V19.58 只為教學的焦點加上短暫醒目外框，避免影響正常對戰。 */
+    .tutorial-focus { outline: 3px solid #fbbf24 !important; outline-offset: 1px !important; box-shadow: 0 0 0 5px rgba(245,158,11,.20), 0 0 26px rgba(245,158,11,.62) !important; }
+    .tutorial-lid { position:absolute; left:0; width:100%; height:51%; background:#000; }
+    .tutorial-lid-top { top:-51%; animation:tutorial-blink-top 2.2s ease-in-out forwards; }
+    .tutorial-lid-bottom { bottom:-51%; animation:tutorial-blink-bottom 2.2s ease-in-out forwards; }
+    @keyframes tutorial-blink-top {0%,100% {top:-51%} 12%,20%,43%,51% {top:0} 26%,36%,57% {top:-51%}}
+    @keyframes tutorial-blink-bottom {0%,100% {bottom:-51%} 12%,20%,43%,51% {bottom:0} 26%,36%,57% {bottom:-51%}}
+    @media (prefers-reduced-motion: reduce) { .tutorial-lid-top,.tutorial-lid-bottom {animation-duration:1.2s;} }
+</style>
 </head>
 <body class="text-slate-100 flex items-center justify-center p-0">
 
@@ -450,15 +459,6 @@
             <div class="text-sm font-black text-amber-300">⚖️ AI 平衡實驗室</div>
             <div class="text-[11px] text-slate-300 mt-1">9 位角色自動對戰、批次模擬、勝率與執行順位統計，支援 CSV 匯出。</div>
           </a>
-        </div>
-      </div>
-
-      <!-- 教學模式佔位彈窗 -->
-      <div id="tutorial-coming-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-end p-4 pb-5 text-left">
-        <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl space-y-3">
-          <div class="text-lg font-black text-sky-300">📖 初次遊玩</div>
-          <div class="text-sm text-slate-300">劇情教學正在製作中，之後會帶你逐步學會搜刮、合成、戰鬥及逃離禁區。你現在可以先選「簡單模式」練習。</div>
-          <button onclick="LobbyManager.closeTutorialModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-100 font-black rounded-xl text-sm transition">知道了</button>
         </div>
       </div>
 
@@ -940,6 +940,26 @@
         <button onclick="closeMapModal()" aria-label="關閉地圖" class="absolute top-[2.2%] right-[4.2%] z-50 px-3 py-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition">關閉</button>
       </div>
 
+      <!-- V19.58 劇情教學：只導引可操作的指定目標 -->
+      <div id="tutorial-hint" class="hidden absolute z-[80] top-[8%] left-1/2 -translate-x-1/2 w-[87%] max-w-[360px] text-center pointer-events-none rounded-xl border-2 border-amber-400/90 bg-slate-950/90 text-amber-200 px-3 py-2 text-xs font-black shadow-xl" role="status" aria-live="polite"></div>
+      <div id="tutorial-dialog" class="hidden absolute inset-0 z-[90] pointer-events-none flex items-end justify-center px-3 pb-5">
+        <div class="w-full rounded-2xl border-2 border-slate-500/80 bg-slate-950/95 shadow-2xl p-3 space-y-2 pointer-events-auto" role="dialog" aria-label="教學劇情對話">
+          <div class="flex justify-between items-center"><span class="text-amber-300 text-xs font-black">陳阿館｜劇情教學</span><span id="tutorial-dialog-count" class="text-[10px] text-slate-500"></span></div>
+          <p id="tutorial-dialog-text" class="text-sm text-white leading-relaxed min-h-[46px] whitespace-pre-wrap"></p>
+          <button id="tutorial-dialog-next" type="button" onclick="TutorialMode.nextDialogue()" class="w-full rounded-xl bg-amber-500 text-slate-950 font-black text-sm py-2.5">繼續 ▶</button>
+        </div>
+      </div>
+      <div id="tutorial-blink" class="hidden absolute inset-0 pointer-events-none z-[96] overflow-hidden">
+        <div class="tutorial-lid tutorial-lid-top"></div><div class="tutorial-lid tutorial-lid-bottom"></div>
+      </div>
+      <div id="tutorial-ending" class="hidden absolute inset-0 z-[95] flex items-center justify-center bg-slate-950/90 p-5">
+        <div class="w-full rounded-2xl border border-amber-500/70 bg-slate-900 p-5 text-center space-y-4 shadow-2xl">
+          <div class="text-2xl">🏛️</div><h2 class="text-xl font-black text-amber-300">抵達立法院</h2>
+          <p class="text-sm text-slate-200">第一段教學劇情到此結束。後續故事待續。</p>
+          <button type="button" onclick="location.reload()" class="w-full py-3 rounded-xl bg-amber-500 text-slate-950 font-black">返回主畫面</button>
+        </div>
+      </div>
+
       <!-- 結算彈窗 -->
       <div id="gameover-modal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center">
         <div id="gameover-icon" class="text-5xl mb-3 font-black text-amber-400">WIN</div>
@@ -990,5 +1010,6 @@
   <script src="corpse.js?v=1953"></script>
   <script src="growth_ui.js?v=117"></script>
   <script src="audio_manager.js?v=1956"></script>
+  <script src="tutorial.js?v=1958"></script>
 </body>
 </html>
