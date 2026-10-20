@@ -164,6 +164,9 @@ const state = {
   nextPlayerAmbushSec: 0,
   isSearching: false,
   pendingLootQueue: [],
+  corpses: [],
+  nextCorpseId: 1,
+  pendingVictoryReason: null,
   gameOver: false,
   trackedItemId: null,
   craftBookFilter: "all",
@@ -558,6 +561,10 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
   state.nextPlayerAmbushSec = 0;
   state.isSearching = false;
   state.pendingLootQueue = [];
+  state.corpses = [];
+  state.nextCorpseId = 1;
+  state.pendingVictoryReason = null;
+  document.getElementById("corpse-loot-overlay")?.classList.add("hidden");
   state.zoneSongShows = Object.create(null);
   const lootOverlay = document.getElementById("loot-choice-overlay");
   if (lootOverlay) lootOverlay.classList.add("hidden");
@@ -685,6 +692,12 @@ function executeZoneShrink() {
     state.permanentClosedZones = [...new Set([...state.permanentClosedZones, ...newlyClosed])];
   }
   state.closedZones = [...new Set([...state.permanentClosedZones, ...state.temporaryClosedZones])];
+  // V19.53: 暫時封區保留屍體（之後可能重開）；永久封鎖才清除殘留屍體。
+  if (permanent && Array.isArray(state.corpses)) {
+    state.corpses = state.corpses.filter(c => !state.permanentClosedZones.includes(c.zoneId));
+    if (typeof isCorpseLootOpen === 'function' && isCorpseLootOpen() &&
+        !state.corpses.some(c => c.id === activeCorpseLootId)) closeCorpseLoot();
+  }
   state.pendingCloseZones = [];
   state.round = nextRound;
   state.roundTimeRemain = ZONE_ROUND_SECONDS;
@@ -851,7 +864,7 @@ function togglePlayerRest(e) {
 }
 
 function triggerSearch() {
-  if (state.gameOver || state.inCombat || state.isSearching || (state.pendingLootQueue || []).length > 0 || !state.player) return;
+  if (state.gameOver || state.inCombat || state.isSearching || (state.pendingLootQueue || []).length > 0 || isCorpseLootOpen() || !state.player) return;
   if (state.player.isResting) stopPlayerRest("你停止休息，開始搜刮。");
 
   const p = state.player;
@@ -949,16 +962,23 @@ function lootMultipleItemsForPlayer(count = 1, growthCredit = false) {
   const zoneObj = getSafeCurrentZone(p.zone);
   const pool = zoneObj && Array.isArray(zoneObj.drops) ? zoneObj.drops : [];
   let found = 0;
+  const chosenCorpseIds = new Set();
   for (let i = 0; i < count; i++) {
-    if (pool.length === 0) break;
-    const index = Math.floor(Math.random() * pool.length);
-    const itemId = pool.splice(index, 1)[0];
+    const choice = drawZoneLootChoice(zoneObj, false, chosenCorpseIds);
+    if (!choice) break;
+    if (choice.type === 'corpse') {
+      chosenCorpseIds.add(choice.corpse.id);
+      // 屍體只算一格，裡面有幾件物品都不增加被搜到的權重。
+      state.pendingLootQueue.push({ type:'corpse', corpseId: choice.corpse.id, zoneId: zoneObj.id });
+      found++;
+      continue;
+    }
+    const itemId = pool.splice(choice.itemIndex, 1)[0];
     if (!getSafeItem(itemId)) {
       pool.push(itemId);
       continue;
     }
-    // V19.45：成功搜到道具當下給搜刮 EXP，不依賴拾取／裝備／忽略選項。
-    // 韓國瑜的三件搜刮仍逐件計算，沒有搜到道具則不給 EXP。
+    // 搜刮 EXP 仍只在真正找到普通道具時發放；屍體不重複刷經驗。
     if ((growthCredit === 'all' || (growthCredit && found === 0)) && typeof grantSearchGrowth === 'function') {
       grantSearchGrowth(p);
     }
@@ -1108,10 +1128,25 @@ function renderLootChoice() {
     overlay.classList.add('hidden');
     return;
   }
+  if (current.type === 'corpse') {
+    overlay.classList.add('hidden');
+    const corpse = findCorpseById(current.corpseId);
+    if (corpse) openCorpseLoot(corpse.id, false);
+    else { queue.shift(); renderLootChoice(); }
+    return;
+  }
   const item = getSafeItem(current.itemId);
   if (!item) {
     resolveLootChoice(false);
     return;
+  }
+  if (item.type === 'material' && window.GameAudio?.playMaterialFound) {
+    // 用物件識別同一件搜刮結果，避免重新繪製 UI 時連續發出多次提示音。
+    if (!renderLootChoice._chimedItems) renderLootChoice._chimedItems = new WeakSet();
+    if (!renderLootChoice._chimedItems.has(current)) {
+      renderLootChoice._chimedItems.add(current);
+      window.GameAudio.playMaterialFound();
+    }
   }
   const rarity = ItemRegistry.getRarity(current.itemId);
   const slot = item.type;
@@ -1182,6 +1217,7 @@ function resolveLootChoice(action = 'ignore') {
     return;
   }
   const current = queue[0];
+  if (current.type === "corpse") return;
   const item = getSafeItem(current.itemId);
   const player = state.player;
   const equipSlot = item?.type;
@@ -1219,10 +1255,11 @@ function returnUnclaimedLoot() {
   const queue = state.pendingLootQueue || [];
   for (const loot of queue) {
     const zone = getSafeZones().find(z => z.id === loot.zoneId);
-    if (zone && Array.isArray(zone.drops)) zone.drops.push(loot.itemId);
+    if (loot.type !== "corpse" && zone && Array.isArray(zone.drops)) zone.drops.push(loot.itemId);
   }
   state.pendingLootQueue = [];
   document.getElementById('loot-choice-overlay')?.classList.add('hidden');
+  document.getElementById('corpse-loot-overlay')?.classList.add('hidden');
 }
 
 function executeSearchFinish() {
@@ -2554,7 +2591,7 @@ function addLog(msg, colorClass = "text-slate-300") {
 
 // AI 對戰與禁區淘汰也可能清空對手名單；避免最後一名 NPC 死亡卻不結算。
 function checkAllAIsDeadWin() {
-  if (state.gameOver || !state.player || !state.player.alive) return;
+  if (state.gameOver || state.pendingVictoryReason || !state.player || !state.player.alive) return;
   if (state.ais.length > 0 && state.ais.every(ai => !ai.alive)) {
     state.inCombat = false;
     state.ai = null;

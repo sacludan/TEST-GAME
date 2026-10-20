@@ -659,12 +659,17 @@ function aiSelectDropIndex(ai, zone, plan) {
 
 function lootOneItemForAI(ai) {
   const zObj = getSafeCurrentZone(ai.zone);
-  if (!zObj || !Array.isArray(zObj.drops) || zObj.drops.length === 0) return false;
+  if (!zObj || !Array.isArray(zObj.drops)) return false;
 
   aiEnsureBestEquipment(ai);
   const plan = aiGetCurrentTargetPlan(ai);
-  const randIdx = aiSelectDropIndex(ai, zObj, plan);
-  if (randIdx < 0) return false;
+  const choice = drawZoneLootChoice(zObj, true);
+  if (!choice) return false;
+  if (choice.type === 'corpse') {
+    // 每次搜刮只在屍體中取一件，不能從戰利品池直接透視挑出全部。
+    return aiTakeOneCorpseItem(ai, choice.corpse, plan);
+  }
+  const randIdx = choice.itemIndex;
 
   const dropId = zObj.drops[randIdx];
   const item = getSafeItem(dropId);
@@ -1115,6 +1120,7 @@ function aiResolveUnitDefeat(victim, killer) {
   victim.hp = 0;
   victim.alive = false;
   grantEliminationGrowth(killer, victim);
+  if (victim !== state.player && typeof createCorpseForVictim === 'function') createCorpseForVictim(victim);
   aiStopRest(victim);
   victim.aiSearchingUntilSec = null;
   if (state.inCombat && state.ai === victim && typeof finishCombatTurn === "function") finishCombatTurn();

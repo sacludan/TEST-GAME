@@ -561,6 +561,9 @@ function handleUnitDefeat(victim, killer) {
   victim.hp = 0;
   victim.alive = false;
   grantEliminationGrowth(killer, victim);
+  // 最終死亡才掉落；豬哥亮免死發動時不可產生屍體。
+  const corpse = victim !== state.player && typeof createCorpseForVictim === 'function'
+    ? createCorpseForVictim(victim) : null;
 
   if (victim === state.player) {
     state.inCombat = false;
@@ -574,14 +577,21 @@ function handleUnitDefeat(victim, killer) {
   const remainAIs = state.ais.filter(a => a.alive);
   addLog(`🏆 【淘汰對手】你成功擊倒了 【${victim.name}】！（剩餘對手：${remainAIs.length} 人）`, "text-amber-400 font-black");
 
-  if (remainAIs.length === 0) {
+  const playerKilledInEncounter = killer === state.player && state.inCombat && state.ai === victim;
+  if (remainAIs.length === 0 && playerKilledInEncounter && corpse) {
+    // 最後一名敵人的戰利品先讓玩家查看，關閉後才顯示勝利結算。
+    state.pendingVictoryReason = '你成功擊潰了場上所有對手，制霸台灣生存戰！';
+    if (mainTimer) clearInterval(mainTimer); // 勝利已確定，玩家舔包期間不再扣禁區傷害。
+    finishCombatTurn();
+    openCorpseLoot(corpse.id, true);
+  } else if (remainAIs.length === 0) {
     state.inCombat = false;
     combatActionBusy = false;
     updateUI();
     triggerGameOver(true, `你成功擊潰了場上所有對手，制霸台灣生存戰！`);
   } else if (state.inCombat && state.ai === victim) {
-    // 這隻 NPC 已確實淘汰，立刻解除遭遇狀態，不讓 0 HP 面板卡住。
     finishCombatTurn();
+    if (playerKilledInEncounter && corpse) openCorpseLoot(corpse.id, true);
   }
 }
 

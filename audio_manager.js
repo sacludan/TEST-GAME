@@ -20,7 +20,8 @@
   const sfxConfig = {
     search: { src: 'assets/audio/sfx_search_loot.mp3', gain: 0.55 },
     hit:    { src: 'assets/audio/sfx_hit_enemy.mp3',   gain: 0.72 },
-    hurt:   { src: 'assets/audio/sfx_player_hurt.mp3', gain: 0.78 }
+    hurt:   { src: 'assets/audio/sfx_player_hurt.mp3', gain: 0.78 },
+    material: { src: 'assets/audio/sfx_material_chime.mp3', gain: 0.80 }
   };
   const sfxSources = Object.create(null);
   const sfxBuffers = Object.create(null);
@@ -210,6 +211,7 @@
     refresh,
     primeSfx,
     playSfx,
+    playMaterialFound() { return playSfx('material'); },
     stopSfx,
     syncZoneWarning(isPending, remainSeconds = 120) {
       const active = !!isPending;

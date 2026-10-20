@@ -351,7 +351,7 @@
                 <span>角色選擇</span>
                 <span class="block text-[11px] text-amber-300 font-bold mt-0.5">目前：<span id="selected-char-inline">豬勾亮</span></span>
               </button>
-              <div class="text-[10px] text-slate-200/75 text-center">V19.52</div>
+              <div class="text-[10px] text-slate-200/75 text-center">V19.53</div>
             </div>
 
             <button onclick="LobbyManager.openTutorialModal()" class="w-[84px] h-[84px] rounded-3xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-500/70 active:scale-95 text-slate-200 shadow transition flex flex-col items-center justify-center gap-1.5 backdrop-blur-[1px]">
@@ -854,6 +854,27 @@
         </div>
       </div>
 
+      <!-- V19.53 屍體戰利品：依地圖屍體庫存即時顯示，可逐件拾取 / 直接裝備。 -->
+      <div id="corpse-loot-overlay" class="hidden absolute inset-0 z-[65] flex items-center justify-center p-3 bg-slate-950/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="屍體戰利品">
+        <div class="w-full max-w-[350px] max-h-[90%] flex flex-col rounded-2xl border-2 border-rose-800/80 bg-slate-950/95 shadow-2xl overflow-hidden">
+          <div class="shrink-0 px-3 pt-3 pb-2 border-b border-slate-700 flex items-start gap-3">
+            <div class="w-16 h-20 rounded-lg bg-slate-900 border border-rose-900/50 overflow-hidden flex items-end justify-center shrink-0">
+              <img id="corpse-loot-portrait" alt="" class="hidden h-full w-full object-contain object-bottom grayscale opacity-70" draggable="false">
+            </div>
+            <div class="flex-1 min-w-0 pt-1">
+              <div class="text-amber-300 font-black text-base">💀 發現屍體</div>
+              <div id="corpse-loot-description" class="text-xs text-slate-300 mt-1 leading-snug">搜尋戰利品中…</div>
+              <div class="text-[10px] text-slate-500 mt-1">未取走的物資會留給其他搜刮者</div>
+            </div>
+            <button type="button" onclick="closeCorpseLoot()" class="shrink-0 text-slate-100 bg-slate-800 px-2.5 py-1.5 rounded-lg text-xs font-bold" aria-label="關閉屍體視窗">✕</button>
+          </div>
+          <div id="corpse-loot-items" class="min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-3 space-y-2 flex-1"></div>
+          <div class="shrink-0 p-3 pt-2 border-t border-slate-800">
+            <button type="button" onclick="closeCorpseLoot()" class="w-full rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 py-2.5 text-sm font-black text-slate-100">離開屍體</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 自選合成：一次列出全部持有材料可組成的配方。 -->
       <div id="craft-choice-modal" class="hidden absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm p-3 flex flex-col" role="dialog" aria-modal="true" aria-label="合成選單">
         <div class="flex items-start justify-between gap-2 shrink-0 border-b border-slate-700 pb-3 pt-2">
@@ -941,10 +962,11 @@
   
   <script src="growth.js?v=119"></script>
   <script src="lobby.js?v=1944"></script>
-  <script src="ai.js?v=1948"></script>
-  <script src="combat.js?v=1952"></script>
-  <script src="main.js?v=1948"></script>
+  <script src="ai.js?v=1953"></script>
+  <script src="combat.js?v=1953"></script>
+  <script src="main.js?v=1953"></script>
+  <script src="corpse.js?v=1953"></script>
   <script src="growth_ui.js?v=117"></script>
-  <script src="audio_manager.js?v=1948"></script>
+  <script src="audio_manager.js?v=1953"></script>
 </body>
 </html>
