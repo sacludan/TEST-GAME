@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=1963', 'game_config.js',
-  'growth.js?v=1963', 'ai.js?v=1963', 'combat.js?v=1963', 'main.js?v=1963', 'corpse.js?v=1953'
+  'recipes.js', 'maps.js', 'characters.js?v=1964', 'game_config.js',
+  'growth.js?v=1963', 'ai.js?v=1963', 'combat.js?v=1963', 'main.js?v=1964', 'corpse.js?v=1953'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};

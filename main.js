@@ -542,7 +542,7 @@ function updateZoneSceneBackground(zoneId) {
 }
 
 
-// V19.63：戰神：每累積 50 點對敵人造成的有效戰鬥傷害，六格已穿戴裝備中隨機升一階。
+// V19.64：戰神：每累積 200 點對敵人造成的有效戰鬥傷害，六格已穿戴裝備中隨機升一階。
 // 優先沿用現有配方的同系裝備；沒有直接上階配方時，從同部位下一階選強度最接近者。
 // 不複製材料、不改道具池、不超過紅裝；玩家與 NPC 使用同一方法。
 function upgradeWarGodEquipment(killer) {
@@ -567,26 +567,26 @@ function upgradeWarGodEquipment(killer) {
   const choice = candidates[Math.floor(Math.random() * candidates.length)];
   killer.equip[choice.slot] = {...choice.next};
   if (killer.isPlayer) {
-    addLog(`📢 【戰神】累積 50 點傷害！${choice.before.name} 自動升階成【${choice.next.name}】（${choice.targetTier} 階）！`, "text-amber-300 font-black");
+    addLog(`📢 【戰神】累積 200 點傷害！${choice.before.name} 自動升階成【${choice.next.name}】（${choice.targetTier} 階）！`, "text-amber-300 font-black");
   } else killer.lastAIAction = `戰神升階：${choice.before.name}→${choice.next.name}`;
   return true;
 }
 
-// 戰神：每跨過 50 點「實際扣除的敵人 HP」就升階；跨不同敵人、跨戰鬥累積。
-// 溢出傷害、閃避、補血與反傷不算；單發超過 100 點可連續升兩次。
+// 戰神：每跨過 200 點「實際扣除的敵人 HP」就升階；跨不同敵人、跨戰鬥累積。
+// 溢出傷害、閃避、補血與反傷不算；超過 400 點可連續升兩次。
 function recordWarGodCombatDamage(attacker, actualDamage) {
   if (!attacker || !attacker.alive || attacker.id !== 'huangguocong' || !balanceHasPassive(attacker)) return 0;
   const dealt = Math.max(0, Math.round(Number(actualDamage) || 0));
   if (!dealt) return 0;
   attacker.warGodDamageProgress = (attacker.warGodDamageProgress || 0) + dealt;
   let upgraded = 0;
-  while (attacker.warGodDamageProgress >= 50) {
+  while (attacker.warGodDamageProgress >= 200) {
     if (!upgradeWarGodEquipment(attacker)) {
-      // 尚未有可升級裝備時保留下一次升級所需的 50 點；不無限囤積免費升裝。
-      attacker.warGodDamageProgress = 50;
+      // 尚未有可升級裝備時最多保留一次升級所需的 200 點；不無限囤積免費升裝。
+      attacker.warGodDamageProgress = 200;
       break;
     }
-    attacker.warGodDamageProgress -= 50;
+    attacker.warGodDamageProgress -= 200;
     upgraded++;
   }
   return upgraded;

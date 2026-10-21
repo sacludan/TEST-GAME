@@ -262,7 +262,7 @@ const GAME_CHARACTERS = {
     equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
     skill: { name: "太離譜了", icon: "📢", cd: 35, costSp: 25, combatOnly: true,
       desc: "攻擊 1 倍傷害；命中後對方背包（不含已穿戴裝備）隨機掉落 1 件道具到當前地區。空背包不掉落。" },
-    passive: { name: "戰神", desc: "累積對敵人實際造成 50 點戰鬥傷害，隨機將一件已穿戴且可升階的裝備提升 1 階；傷害可跨不同對手累積，最高紅裝。" }
+    passive: { name: "戰神", desc: "累積對敵人實際造成 200 點戰鬥傷害，隨機將一件已穿戴且可升階的裝備提升 1 階；傷害可跨不同對手累積，最高紅裝。" }
   },
   wuzhongxian: {
     id: "wuzhongxian", name: "吳忠憲", title: "追蹤／獵人型",
