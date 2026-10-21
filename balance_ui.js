@@ -252,7 +252,7 @@
     try {
       jobs=[];
       for(let i=0;i<workerCount;i++) {
-        const worker=new Worker('balance_worker.js?v=1964');
+        const worker=new Worker('balance_worker.js?v=1965');
         jobs.push({worker,progress:0,done:false,batch:null});
       }
     } catch(e) {

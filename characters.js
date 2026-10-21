@@ -135,7 +135,7 @@ const GAME_CHARACTERS = {
       cd: 30,
       costSp: 25,
       combatOnly: true,
-      desc: "連續攻擊 3 次，每槍造成原本技能傷害的 75%，接下來 15 秒內攻擊力減半"
+      desc: "連續攻擊 3 次，每槍造成原本技能傷害的 60%，接下來 15 秒內攻擊力減半"
     },
     passive: {
       name: "幫我開直播",
@@ -167,7 +167,7 @@ const GAME_CHARACTERS = {
     },
     passive: {
       name: "鼎王吃到飽",
-      desc: "食物補血效果 +20%"
+      desc: "食物補血效果 +50%"
     }
   },
 
@@ -191,7 +191,7 @@ const GAME_CHARACTERS = {
       cd: 20,
       costSp: 20,
       combatOnly: true,
-      desc: "造成一次 1.5 倍攻擊力傷害"
+      desc: "造成一次 1.25 倍攻擊力傷害"
     },
     passive: {
       name: "超派～",
@@ -262,15 +262,15 @@ const GAME_CHARACTERS = {
     equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
     skill: { name: "太離譜了", icon: "📢", cd: 35, costSp: 25, combatOnly: true,
       desc: "攻擊 1 倍傷害；命中後對方背包（不含已穿戴裝備）隨機掉落 1 件道具到當前地區。空背包不掉落。" },
-    passive: { name: "戰神", desc: "累積對敵人實際造成 200 點戰鬥傷害，隨機將一件已穿戴且可升階的裝備提升 1 階；傷害可跨不同對手累積，最高紅裝。" }
+    passive: { name: "戰神", desc: "累積對敵人實際造成 250 點戰鬥傷害，隨機將一件已穿戴且可升階的裝備提升 1 階；傷害可跨不同對手累積，最高紅裝。" }
   },
   wuzhongxian: {
     id: "wuzhongxian", name: "吳忠憲", title: "追蹤／獵人型",
-    baseAtk: 13, baseDef: 11, maxHp: 125, hp: 125, maxSp: 120, sp: 120,
+    baseAtk: 16, baseDef: 15, maxHp: 140, hp: 140, maxSp: 120, sp: 120,
     alive: true, zone: "ly", bag: [],
     equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
     skill: { name: "見鬼啦", icon: "👻", cd: 40, costSp: 25, combatOnly: true,
-      desc: "標記遭遇的敵人 30 秒；造成 1 倍技能傷害，並標記敵人 30 秒；即使敵人移動，也能在地圖看見其當前所在區域。" },
+      desc: "造成 1 倍技能傷害並標記敵人 30 秒；期間即使敵人移動，也能在地圖看見其所在區域。" },
     passive: { name: "我猜我猜我猜猜猜", desc: "每次移動到另一區域後，首次搜刮若當地有可遭遇角色，必定觸發遭遇。" }
   },
   mayingjiu: {

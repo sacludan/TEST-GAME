@@ -542,7 +542,7 @@ function updateZoneSceneBackground(zoneId) {
 }
 
 
-// V19.64：戰神：每累積 200 點對敵人造成的有效戰鬥傷害，六格已穿戴裝備中隨機升一階。
+// V19.65：戰神：每累積 250 點對敵人造成的有效戰鬥傷害，六格已穿戴裝備中隨機升一階。
 // 優先沿用現有配方的同系裝備；沒有直接上階配方時，從同部位下一階選強度最接近者。
 // 不複製材料、不改道具池、不超過紅裝；玩家與 NPC 使用同一方法。
 function upgradeWarGodEquipment(killer) {
@@ -567,26 +567,26 @@ function upgradeWarGodEquipment(killer) {
   const choice = candidates[Math.floor(Math.random() * candidates.length)];
   killer.equip[choice.slot] = {...choice.next};
   if (killer.isPlayer) {
-    addLog(`📢 【戰神】累積 200 點傷害！${choice.before.name} 自動升階成【${choice.next.name}】（${choice.targetTier} 階）！`, "text-amber-300 font-black");
+    addLog(`📢 【戰神】累積 250 點傷害！${choice.before.name} 自動升階成【${choice.next.name}】（${choice.targetTier} 階）！`, "text-amber-300 font-black");
   } else killer.lastAIAction = `戰神升階：${choice.before.name}→${choice.next.name}`;
   return true;
 }
 
-// 戰神：每跨過 200 點「實際扣除的敵人 HP」就升階；跨不同敵人、跨戰鬥累積。
-// 溢出傷害、閃避、補血與反傷不算；超過 400 點可連續升兩次。
+// 戰神：每跨過 250 點「實際扣除的敵人 HP」就升階；跨不同敵人、跨戰鬥累積。
+// 溢出傷害、閃避、補血與反傷不算；超過 500 點可連續升兩次。
 function recordWarGodCombatDamage(attacker, actualDamage) {
   if (!attacker || !attacker.alive || attacker.id !== 'huangguocong' || !balanceHasPassive(attacker)) return 0;
   const dealt = Math.max(0, Math.round(Number(actualDamage) || 0));
   if (!dealt) return 0;
   attacker.warGodDamageProgress = (attacker.warGodDamageProgress || 0) + dealt;
   let upgraded = 0;
-  while (attacker.warGodDamageProgress >= 200) {
+  while (attacker.warGodDamageProgress >= 250) {
     if (!upgradeWarGodEquipment(attacker)) {
-      // 尚未有可升級裝備時最多保留一次升級所需的 200 點；不無限囤積免費升裝。
-      attacker.warGodDamageProgress = 200;
+      // 尚未有可升級裝備時最多保留一次升級所需的 250 點；不無限囤積免費升裝。
+      attacker.warGodDamageProgress = 250;
       break;
     }
-    attacker.warGodDamageProgress -= 200;
+    attacker.warGodDamageProgress -= 250;
     upgraded++;
   }
   return upgraded;
@@ -1478,9 +1478,9 @@ function useOrEquipBagItem(bagIndex) {
     let healHp = item.hp || 0;
     let healSp = item.sp || 0;
 
-    // 亞洲桶神被動：鼎王吃到飽 (食物回血量提升 20%)
+    // 亞洲桶神被動：鼎王吃到飽 (食物回血量提升 50%)
     if (p.id === "yazhoutongshen" && balanceHasPassive(p) && healHp > 0) {
-      healHp = Math.round(healHp * 1.2);
+      healHp = Math.round(healHp * 1.5);
     }
 
     p.hp = Math.min(p.maxHp, p.hp + healHp);

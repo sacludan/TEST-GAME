@@ -512,11 +512,11 @@ function executeCombatAction(action) {
         let totalDealt = 0;
         for (let i = 1; i <= 3; i++) {
           if (ai.hp > 0) {
-            totalDealt += applyDamageToTarget(p, ai, baseDmg * 0.75, true, `三槍(第${i}發)`);
+            totalDealt += applyDamageToTarget(p, ai, baseDmg * 0.60, true, `三槍(第${i}發)`);
           }
         }
         p.weakenedRemain = 15;
-        addLog(`🔫 <span class="text-purple-300 font-black">【三槍】</span> 每槍 75% 傷害，3 槍共造成 <span class="text-amber-300 font-black">${totalDealt}</span> 點傷害！（接下來 15 秒攻擊力減半）`, "text-purple-300 font-bold");
+        addLog(`🔫 <span class="text-purple-300 font-black">【三槍】</span> 每槍 60% 傷害，3 槍共造成 <span class="text-amber-300 font-black">${totalDealt}</span> 點傷害！（接下來 15 秒攻擊力減半）`, "text-purple-300 font-bold");
         break;
       }
       case "yazhoutongshen": {
@@ -526,8 +526,8 @@ function executeCombatAction(action) {
         break;
       }
       case "chaoge": {
-        const dmg = applyDamageToTarget(p, ai, baseDmg * 1.5, true, "超派鐵拳");
-        addLog(`👊 <span class="text-purple-300 font-black">【超派鐵拳】</span> 轟出 1.5 倍重拳，對 ${ai.name} 造成 <span class="text-amber-300 font-black">${dmg}</span> 點傷害！`, "text-purple-300 font-bold");
+        const dmg = applyDamageToTarget(p, ai, baseDmg * 1.25, true, "超派鐵拳");
+        addLog(`👊 <span class="text-purple-300 font-black">【超派鐵拳】</span> 轟出 1.25 倍重拳，對 ${ai.name} 造成 <span class="text-amber-300 font-black">${dmg}</span> 點傷害！`, "text-purple-300 font-bold");
         break;
       }
       case "wangshijian": {

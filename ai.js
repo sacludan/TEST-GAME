@@ -561,7 +561,7 @@ function aiUseFood(ai, force = false) {
   let bestValue = -Infinity;
   const missingHp = Math.max(0, (ai.maxHp || ai.hp) - ai.hp);
   const missingSp = Math.max(0, (ai.maxSp || ai.sp) - ai.sp);
-  const hpMultiplier = ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.2 : 1;
+  const hpMultiplier = ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.5 : 1;
 
   ai.bag.forEach((id, index) => {
     const resolved = aiResolveItemId(id);
@@ -635,7 +635,7 @@ function aiScorePickup(ai, item, id, plan) {
     const spRatio = ai.sp / Math.max(1, ai.maxSp);
     const healthNeed = Math.max(0, (ai.maxHp - ai.hp) * (hpRatio < 0.55 ? 1.2 : 0.12));
     const staminaNeed = Math.max(0, (ai.maxSp - ai.sp) * (spRatio < 0.45 ? 1.0 : 0.08));
-    const foodUtility = Math.min(healthNeed, (Number(item.hp) || 0) * (ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.2 : 1)) + Math.min(staminaNeed, Number(item.sp) || 0) * 0.8;
+    const foodUtility = Math.min(healthNeed, (Number(item.hp) || 0) * (ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.5 : 1)) + Math.min(staminaNeed, Number(item.sp) || 0) * 0.8;
     if (aiPlanRequiredCopies(plan, resolved) > aiCountOwned(ai, resolved)) return 1300 + foodUtility;
     const foodCount = aiFoodCount(ai);
     if (foodCount >= aiFoodQuota(ai)) return -650 + foodUtility;
@@ -907,7 +907,7 @@ function moveAIToSafeZone(ai, targetZone = null) {
 function aiUseHPFood(ai) {
   if (!ai || ai.hp >= ai.maxHp) return false;
   const missing = ai.maxHp - ai.hp;
-  const multiplier = ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.2 : 1;
+  const multiplier = ai.id === "yazhoutongshen" && balanceHasPassive(ai) ? 1.5 : 1;
   let bestIndex = -1;
   let bestValue = -Infinity;
   (ai.bag || []).forEach((id, index) => {
@@ -1192,7 +1192,7 @@ function aiUseCombatSkill(attacker, defender) {
       break;
     case "chenaguan":
       for (let i = 0; i < 3 && defender.hp > 0 && attacker.hp > 0; i++) {
-        damage += aiSkillDamage(attacker, defender, 0.75);
+        damage += aiSkillDamage(attacker, defender, 0.60);
       }
       attacker.weakenedRemain = 15;
       break;
@@ -1200,7 +1200,7 @@ function aiUseCombatSkill(attacker, defender) {
       attacker.reflectRemain = 12;
       break;
     case "chaoge":
-      damage = aiSkillDamage(attacker, defender, 1.5);
+      damage = aiSkillDamage(attacker, defender, 1.25);
       break;
     case "wangshijian":
       attacker.stealthRemain = 12;
