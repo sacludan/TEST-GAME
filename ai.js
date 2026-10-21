@@ -1007,8 +1007,23 @@ function aiShouldAvoidEncounter(ai, enemy) {
   // 本次攻擊就能擊倒敵人時，仍要把握機會，不因自身殘血浪費出手。
   // 只依可見的血量及傷害估計斬殺機會，不提前得知必閃是否可用。
   if (aiDamageEstimate(ai, enemy) >= enemy.hp) return false;
-  const incoming = aiDamageEstimate(enemy, ai);
   const hpRatio = ai.hp / Math.max(1, ai.maxHp);
+
+  // V19.61：簡單模式的 NPC 對玩家不再只因裝備落後、或預估可能挨兩下
+  // 就立即換區；讓初學者有機會完成擊殺並體驗屍體搜刮。
+  // 瀕死（HP <= 12%）仍保留 20% 的逃生機會。每次血量狀態只擲一次，
+  // 避免 0.5 秒 AI Tick 反覆抽骰，讓低機率逃跑變成幾乎必定逃跑。
+  // 困難模式和 NPC 互打仍沿用原本完整的避戰判斷。
+  if (!aiIsHard() && enemy === state.player) {
+    if (hpRatio > 0.12) return false;
+    if (ai.easyRetreatRollHp !== ai.hp) {
+      ai.easyRetreatRollHp = ai.hp;
+      ai.easyRetreatDecision = Math.random() < 0.20;
+    }
+    return ai.easyRetreatDecision === true;
+  }
+
+  const incoming = aiDamageEstimate(enemy, ai);
   const lowHealth = hpRatio <= AI_RETREAT_LOW_HP_RATIO;
   // 即使敵方平均戰力較低，也應避開兩擊內可能死亡的局面。
   const imminentDanger = ai.hp <= incoming * (aiIsHard() ? 2.0 : 1.5);
