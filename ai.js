@@ -7,6 +7,9 @@ const AI_EQUIP_SLOTS = ["weapon", "head", "chest", "arm", "leg", "acc"];
 const AI_MAX_BAG_SIZE = 6;
 // 每位 AI 獨立行動間隔（秒），和玩家一致為 1.5 秒。
 const AI_ACTION_COOLDOWN_SEC = 1.5;
+// 簡單難度：每個 AI 動作完成後，額外等待 1 秒才開始下一個動作。
+// 保留原本的搜刮/移動/合成耗時，不會將 1.5 秒搜尋錯改成更快的 1 秒。
+const AI_EASY_ACTION_GAP_SEC = 1;
 const AI_SEARCH_DURATION_SEC = 1.5;
 const AI_FAST_SEARCH_DURATION_SEC = 0.5; // 王世間隱蔽期間與玩家一致
 const AI_SEARCH_SP_COST = 8;
@@ -65,7 +68,10 @@ function aiReadyForAction(ai) {
 }
 
 function aiCommitAction(ai, seconds = AI_ACTION_COOLDOWN_SEC) {
-  ai.aiNextActionSec = state.aiTimeSec + seconds;
+  // 難度以目前對局設定為準：簡單模式加 1 秒空檔，困難模式完全不變。
+  // 搜刮的完成時間 aiSearchingUntilSec 不變；只有完成後的下一次行動延後。
+  const postActionGap = aiIsHard() ? 0 : AI_EASY_ACTION_GAP_SEC;
+  ai.aiNextActionSec = state.aiTimeSec + seconds + postActionGap;
 }
 
 function aiCanRestSafely(ai) {
