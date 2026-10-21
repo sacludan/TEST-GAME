@@ -1383,7 +1383,7 @@ function executeSearchFinish() {
 
     if (sameZoneAIs.length > 0) {
       const encounterRoll = Math.random();
-      if (guaranteedEncounter || encounterRoll < 0.65) {
+      if (guaranteedEncounter || encounterRoll < 0.75) {
         const targetAI = sameZoneAIs[Math.floor(Math.random() * sameZoneAIs.length)];
         if (guaranteedEncounter || encounterRoll < getSearchEncounterChance(p, targetAI)) {
           if (typeof startCombat === 'function') {
@@ -1419,8 +1419,8 @@ function triggerPlayerSkillButton(e) {
   }
 }
 
-// 韓國魚【愛情摩天輪】已取代舊雷達，所有角色恢復普通 65% 遇敵率。
-function getSearchEncounterChance(searcher, target) { return 0.65; }
+// 韓國魚【愛情摩天輪】已取代舊雷達，所有角色採用普通 75% 遇敵率。
+function getSearchEncounterChance(searcher, target) { return 0.75; }
 
 // ==========================================
 // 8. 6格裝備欄、背包操作與拖曳系統

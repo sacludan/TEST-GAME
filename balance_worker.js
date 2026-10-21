@@ -5,7 +5,7 @@ self.document = { readyState: 'loading', addEventListener() {}, getElementById()
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
   'recipes.js', 'maps.js', 'characters.js?v=1965', 'game_config.js',
-  'growth.js?v=1963', 'ai.js?v=1965', 'combat.js?v=1965', 'main.js?v=1965', 'corpse.js?v=1953'
+  'growth.js?v=1963', 'ai.js?v=1966', 'combat.js?v=1965', 'main.js?v=1966', 'corpse.js?v=1953'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};

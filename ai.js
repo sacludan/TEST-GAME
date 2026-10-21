@@ -1372,9 +1372,9 @@ function runAIBrain() {
           const rivals = aiLivingThreats(ai);
           const forcedFirstSearch = ai.id === "wuzhongxian" && balanceHasPassive(ai) && ai.firstSearchAmbushPending;
           if (forcedFirstSearch) ai.firstSearchAmbushPending = false;
-          // 先抽原本的 65% 遭遇骰，成功才抽對手；沒有雷達時保留舊版的亂數消耗順序。
+          // 先抽固定 75% 遭遇骰，成功才抽對手；保留既有的亂數消耗順序。
           const encounterRoll = Math.random();
-          const opponent = rivals.length && (forcedFirstSearch || encounterRoll < 0.65) ? aiChooseDuelTarget(ai, rivals) : null;
+          const opponent = rivals.length && (forcedFirstSearch || encounterRoll < 0.75) ? aiChooseDuelTarget(ai, rivals) : null;
           const duel = opponent && (forcedFirstSearch || encounterRoll < getSearchEncounterChance(ai, opponent)) ? opponent : null;
           if (duel) {
             const avoided = forcedFirstSearch ? false : aiTryAvoidSearchEncounter(ai, duel);
