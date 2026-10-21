@@ -75,21 +75,14 @@ function grantGrowthMastery(entity, amount) {
   return after.index > before.index;
 }
 
-// 韓國魚【愛情摩天輪】：普通搜刮、技能搜刮、合成都以實際成功獲得為準。
-// 僅加倍角色 EXP，不加倍戰鬥熟練度、擊殺或命中經驗。
-function hasHanguoyuExpPassive(entity) {
-  return entity?.id === 'hanguoyu' && typeof balanceHasPassive === 'function' && balanceHasPassive(entity);
-}
-
 function grantSearchGrowth(entity) {
-  const exp = hasHanguoyuExpPassive(entity) ? 2 : 1;
-  return grantGrowthExperience(entity, exp, entity?.isPlayer ? '有效搜刮' : '');
+  return grantGrowthExperience(entity, 1, entity?.isPlayer ? '有效搜刮' : '');
 }
 
 function grantCraftGrowth(entity, item) {
   if (!item) return false;
   const rarity = Math.max(1, Math.min(5, Number(item.rarity) || 1));
-  const exp = (rarity <= 2 ? 1 : rarity - 1) * (hasHanguoyuExpPassive(entity) ? 2 : 1);
+  const exp = rarity <= 2 ? 1 : rarity - 1;
   return grantGrowthExperience(entity, exp, entity?.isPlayer ? '合成' : '');
 }
 
@@ -112,6 +105,7 @@ function grantEliminationGrowth(killer, victim) {
   if (killer.alive) {
     grantGrowthExperience(killer, 5, killer.isPlayer ? '擊殺' : '');
     grantGrowthMastery(killer, 5);
+    if (typeof upgradeWarGodEquipment === 'function') upgradeWarGodEquipment(killer);
   }
   return true;
 }

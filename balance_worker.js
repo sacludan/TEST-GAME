@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=72', 'game_config.js',
-  'growth.js?v=119', 'ai.js?v=130', 'combat.js?v=129', 'main.js?v=1942'
+  'recipes.js', 'maps.js', 'characters.js?v=1962', 'game_config.js',
+  'growth.js?v=1962', 'ai.js?v=1962', 'combat.js?v=1962', 'main.js?v=1962', 'corpse.js?v=1953'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -62,8 +62,8 @@ globalThis.recordAIRestHealing = function (entity, recovered) {
 
 // 統計是觀測層，覆蓋包裝但不改原版規則。
 const originalHit = resolveCombatHit;
-resolveCombatHit = function (attacker, defender, rawDamage) {
-  const r = originalHit(attacker, defender, rawDamage);
+resolveCombatHit = function (attacker, defender, rawDamage, options = {}) {
+  const r = originalHit(attacker, defender, rawDamage, options);
   const a = track(attacker), d = track(defender);
   if (a) {
     a.attackAttempts++;
@@ -156,7 +156,7 @@ function emptyMetrics(id, position) {
 function zoneClone(zone) { return {...zone, drops:[...zone.drops], initialDrops:[...new Set(zone.drops)]}; }
 const MAX_SIM_SECONDS = 1200;
 function simulate(matchNumber, seed, difficulty, rotationBlock) {
-  // 同一組 9 場採用同一個隨機基底排列，循環位移，讓每個角色各站過每個行動順位一次。
+  // 同一組 12 場採用同一個隨機基底排列，循環位移，讓每個角色各站過每個行動順位一次。
   // 不同組打散基底排列；起始區每場獨立隨機抽樣，且每名角色位於不同起始區。
   Math.random = seededRandom((seed ^ Math.imul(matchNumber + 1, 0x9E3779B9)) >>> 0);
   // 透過定序區塊的排列與輪轉控制順位；與隨機起始位置抽樣獨立。
@@ -315,7 +315,7 @@ onmessage = async function (event) {
       }
     }
     const report=aggregate(matches);
-    postMessage({type:input.type==='batch'?'batchDone':'done', batchId:input.batchId, report, settings:{seed,difficulty,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 9 局輪換執行順位'});
+    postMessage({type:input.type==='batch'?'batchDone':'done', batchId:input.batchId, report, settings:{seed,difficulty,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 12 局輪換執行順位'});
   } catch (error) {
     postMessage({type:'error',message:String(error?.stack||error)});
   } finally {

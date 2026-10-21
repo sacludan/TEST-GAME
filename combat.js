@@ -316,9 +316,9 @@ function applyEasyPlayerDamageReduction(amount, target) {
     ? Math.max(1, Math.ceil(hit / 2)) : hit;
 }
 
-function resolveCombatHit(attacker, defender, rawDamage) {
+function resolveCombatHit(attacker, defender, rawDamage, options = {}) {
   const result = { damage: 0, dodged: false, reflected: 0, heal: 0, guan: false };
-  if (!attacker || !defender || !defender.alive || defender.hp <= 0) return result;
+  if (!attacker || !defender || !defender.alive || defender.hp <= 0 || (options.exactDamage && rawDamage <= 0)) return result;
   // 問A答B：就緒時每次受擊有 70% 機率完全閃避。
   // 成功閃避開始 35 秒冷卻；失敗正常受傷且保留就緒狀態。
   if (defender.id === "jiangwanan" && balanceHasPassive(defender) && defender.dodgeReady) {
@@ -333,11 +333,15 @@ function resolveCombatHit(attacker, defender, rawDamage) {
   // 歌廳秀：僅施放者豬哥亮身處其開秀區域、效果有效時，戰鬥傷害 +20%／受傷 -10%。
   const songAttackBuff = isSongShowCasterBuffActive(attacker);
   const songDefenseBuff = isSongShowCasterBuffActive(defender);
-  const originalHit = Math.max(6, Math.round(rawDamage));
+  const originalHit = options.exactDamage ? Math.max(0, Math.round(rawDamage)) : Math.max(6, Math.round(rawDamage));
   const rawHit = songAttackBuff ? Math.max(1, Math.round(originalHit * 1.2)) : originalHit;
+  // 馬英酒【馬上就好】：所有造成的戰鬥傷害依現有 SP 等比例強化，最高 +50%。
+  const spRatio = attacker.maxSp > 0 ? Math.max(0, Math.min(1, attacker.sp / attacker.maxSp)) : 1;
+  const warhorseHit = attacker.id === 'mayingjiu' && balanceHasPassive(attacker)
+    ? Math.max(1, Math.round(rawHit * (1 + 0.5 * (1 - spRatio)))) : rawHit;
   // 亞洲桶神：8 秒內承受攻擊傷害 -50%；僅前兩次有效命中反彈原始傷害。
   const shielding = defender.reflectRemain > 0;
-  let damage = shielding ? Math.max(1, Math.round(rawHit * 0.5)) : rawHit;
+  let damage = shielding ? Math.max(1, Math.round(warhorseHit * 0.5)) : warhorseHit;
   if (songDefenseBuff) damage = Math.max(1, Math.round(damage * 0.9));
   damage = applyEasyPlayerDamageReduction(damage, defender);
   defender.hp = Math.max(0, defender.hp - damage);
@@ -370,9 +374,9 @@ function resolveCombatHit(attacker, defender, rawDamage) {
 }
 
 // 遭遇戰 UI 包裝；同一套結算供 NPC 對打呼叫 resolveCombatHit。
-function applyDamageToTarget(attacker, defender, rawDamage, isCrit = false, label = "攻擊") {
+function applyDamageToTarget(attacker, defender, rawDamage, isCrit = false, label = "攻擊", options = {}) {
   const enemyHpContainer = document.getElementById("enemy-hp-container");
-  const result = resolveCombatHit(attacker, defender, rawDamage);
+  const result = resolveCombatHit(attacker, defender, rawDamage, options);
   if (result.dodged) {
     if (defender === state.ai && attacker === state.player) {
       try { renderCombatDamageFloat(enemyHpContainer, "MISS", false, true); } catch (err) { console.warn("Damage display failed:", err); }
@@ -528,6 +532,26 @@ function executeCombatAction(action) {
       case "jiangwanan": {
         const healed = healCharactersInZone(p, 30);
         addLog(`🥛 <span class="text-emerald-300 font-black">【生生喝鮮乳】</span> 區域全體（含敵人）恢復最多 30 HP，${healed.healedCharacters} 人實際恢復共 ${healed.totalHealed} HP！`, "text-emerald-300 font-bold");
+        break;
+      }
+      case "huangguocong": {
+        const dmg = applyDamageToTarget(p, ai, baseDmg, false, '太離譜了');
+        if (dmg > 0) {
+          const dropped = knockRandomBagItem(p, ai);
+          addLog(`📢 【太離譜了】${ai.name} 受到 ${dmg} 傷害！${dropped ? '背包物資遭擊落。' : '對方背包沒有道具可掉落。'}`, 'text-amber-300 font-bold');
+        }
+        break;
+      }
+      case "mayingjiu": {
+        const drained = Math.ceil(Math.max(0, ai.sp) / 2);
+        const dmg = applyDamageToTarget(p, ai, Math.round(drained / 2), false, '死亡之握', {exactDamage: true});
+        if (dmg > 0) ai.sp = Math.max(0, ai.sp - drained);
+        addLog(`🤝 【死亡之握】${dmg > 0 ? `抽走 ${ai.name} ${drained} SP，造成 ${dmg} 傷害` : '敵人成功迴避或沒有 SP 可抽取'}！`, 'text-purple-300 font-bold');
+        break;
+      }
+      case "wuzhongxian": {
+        markTrackedOpponent(p, ai);
+        addLog(`👻 【見鬼啦】已標記 ${ai.name}，持續 30 秒（此技能不造成傷害）。`, 'text-fuchsia-300 font-bold');
         break;
       }
     }

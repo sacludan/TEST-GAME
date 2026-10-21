@@ -287,6 +287,10 @@ function createCharacterEntity(charId, isPlayer = false, spawnZoneId = "ly") {
     guanPassiveCd: 0,
     guanDefBuffRemain: 0,
     streamTriggered: false,
+    // 吳忠憲每次換區第一次搜尋必遇敵；見鬼啦追蹤 30s。
+    firstSearchAmbushPending: false,
+    trackedOpponent: null,
+    trackedOpponentUntil: 0,
 
     equip: {
       weapon: null,
@@ -536,10 +540,72 @@ function updateZoneSceneBackground(zoneId) {
   wrap.classList.remove('hidden');
 }
 
+
+// V19.62：戰神：真實擊殺後，六個穿戴欄中的一件裝備免費升一階。
+// 優先沿用現有配方的同系裝備；沒有直接上階配方時，從同部位下一階選強度最接近者。
+// 不複製材料、不改道具池、不超過紅裝；玩家與 NPC 使用同一方法。
+function upgradeWarGodEquipment(killer) {
+  if (!killer || !killer.alive || killer.id !== "huangguocong" || !balanceHasPassive(killer)) return false;
+  const all = GAME_DATA.items;
+  const slots = ["weapon", "head", "chest", "arm", "leg", "acc"];
+  const candidates = slots.flatMap(slot => {
+    const equipped = killer.equip?.[slot];
+    if (!equipped || !equipped.id) return [];
+    const oldTier = Number(equipped.rarity || getSafeItem(equipped.id)?.rarity || 1);
+    if (oldTier >= 5) return [];
+    const targetTier = oldTier + 1;
+    const sameTier = Object.values(all).filter(it => it && it.type === slot && Number(it.rarity) === targetTier);
+    const chain = getSafeRecipes().filter(recipe => (recipe.materials || []).includes(equipped.id))
+      .map(recipe => all[recipe.result]).filter(it => it && it.type === slot && Number(it.rarity) === targetTier);
+    const possible = chain.length ? chain : sameTier;
+    if (!possible.length) return [];
+    const next = [...possible].sort((a,b) => Math.abs((a.score || 0) - (equipped.score || 0) * 2) - Math.abs((b.score || 0) - (equipped.score || 0) * 2))[0];
+    return [{slot, before: equipped, next, targetTier}];
+  });
+  if (!candidates.length) return false;
+  const choice = candidates[Math.floor(Math.random() * candidates.length)];
+  killer.equip[choice.slot] = {...choice.next};
+  if (killer.isPlayer) {
+    addLog(`📢 【戰神】擊殺獎勵！${choice.before.name} 自動升階成【${choice.next.name}】（${choice.targetTier} 階）！`, "text-amber-300 font-black");
+    updateUI();
+  } else killer.lastAIAction = `戰神升階：${choice.before.name}→${choice.next.name}`;
+  return true;
+}
+
+// 太離譜了：只從背包打掉一件實體道具，掉回目標目前所在區域的有限物資池。
+function knockRandomBagItem(attacker, target) {
+  if (!target || !Array.isArray(target.bag) || !target.bag.length) return null;
+  const zone = getSafeCurrentZone(target.zone);
+  if (!zone || !Array.isArray(zone.drops)) return null;
+  const index = Math.floor(Math.random() * target.bag.length);
+  const [itemId] = target.bag.splice(index, 1);
+  zone.drops.push(itemId);
+  if (attacker === state.player || target === state.player) {
+    addLog(`📦 【太離譜了】${target.name} 的【${getSafeItem(itemId)?.name || itemId}】掉落在【${zone.name}】，可再次搜刮！`, "text-rose-300 font-bold");
+    updateUI();
+  }
+  return itemId;
+}
+
+function markTrackedOpponent(caster, target) {
+  if (!caster || !target || !target.alive) return false;
+  caster.trackedOpponent = target;
+  caster.trackedOpponentUntil = (state.aiTimeSec || 0) + 30;
+  if (caster === state.player) {
+    lastTacticalMapSignature = null;
+    addLog(`👻 【見鬼啦】鎖定 ${target.name} 30 秒！地圖會標示對方目前位置。`, 'text-fuchsia-300 font-bold');
+  }
+  return true;
+}
+function getActiveTrackedOpponent(caster) {
+  const target = caster?.trackedOpponent;
+  return target?.alive && (caster.trackedOpponentUntil || 0) > (state.aiTimeSec || 0) ? target : null;
+}
+
 // ==========================================
 // 4. 遊戲初始化 (initGame)
 // ==========================================
-function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds = null, aiDifficulty = "easy") {
+function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds = null, aiDifficulty = "easy", playerCount = 10) {
   if (mainTimer) clearInterval(mainTimer);
 
   DEV_CONFIG.mode = mode;
@@ -604,7 +670,14 @@ function initGame(mode = "normal", selectedCharId = "zhugouliang", customBotIds 
       : []);
 
   if (mode === "normal") {
-    rosterKeys.forEach(botId => {
+    // V19.62：9～12 人（含玩家），以 Fisher–Yates 抽出不重複的電腦角色。
+    const pool = [...rosterKeys];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const opponentCount = Math.min(pool.length, Math.max(8, Math.min(11, Math.round(Number(playerCount) || 10) - 1)));
+    pool.slice(0, opponentCount).forEach(botId => {
       const randZone = zones[Math.floor(Math.random() * zones.length)];
       state.ais.push(createCharacterEntity(botId, false, randZone.id));
     });
@@ -756,6 +829,10 @@ function tickEntityTimers(entity) {
 
 function gameTick() {
   if (state.gameOver || !state.player) return;
+  // 鎖定對手時，地圖已開啟也會每秒追蹤其區域；過期標記自動消失。
+  if (state.player.id === 'wuzhongxian' && document.getElementById('map-modal')?.getAttribute('aria-hidden') === 'false') {
+    renderTacticalMap();
+  }
 
   // 500ms 驅動 AI，讓其實際搜刮 1.5 秒；遊戲時計、技能 CD、回血仍每秒才走一次。
   state.aiTimeSec = Math.round(((state.aiTimeSec || 0) + 0.5) * 2) / 2;
@@ -1275,6 +1352,9 @@ function returnUnclaimedLoot() {
 function executeSearchFinish() {
   const p = state.player;
 
+  // 吳忠憲【我猜我猜我猜猜猜】：進入新區域的第一次搜刮必遇敵（有可遭遇對手時）。
+  const guaranteedEncounter = p.id === 'wuzhongxian' && balanceHasPassive(p) && p.firstSearchAmbushPending;
+  if (guaranteedEncounter) p.firstSearchAmbushPending = false;
   // 若雙方皆未處於王世間隱蔽狀態，且該區有電腦對手，則有機率觸發遭遇戰
   if ((p.stealthRemain || 0) <= 0 && DEV_CONFIG.enableNPC) {
     const sameZoneAIs = state.ais.filter(a =>
@@ -1283,9 +1363,9 @@ function executeSearchFinish() {
 
     if (sameZoneAIs.length > 0) {
       const encounterRoll = Math.random();
-      if (encounterRoll < 0.65) {
+      if (guaranteedEncounter || encounterRoll < 0.65) {
         const targetAI = sameZoneAIs[Math.floor(Math.random() * sameZoneAIs.length)];
-        if (encounterRoll < getSearchEncounterChance(p, targetAI)) {
+        if (guaranteedEncounter || encounterRoll < getSearchEncounterChance(p, targetAI)) {
           if (typeof startCombat === 'function') {
             startCombat(targetAI);
             return;
@@ -2384,6 +2464,7 @@ function moveZone(targetZoneId) {
 
   p.sp -= 5;
   p.zone = targetZoneId;
+  if (p.id === 'wuzhongxian' && balanceHasPassive(p)) p.firstSearchAmbushPending = true;
   const targetZone = getSafeCurrentZone(targetZoneId);
   addLog(`🏃 移動到了【${targetZone.name}】。`, "text-indigo-300");
 
@@ -2405,7 +2486,9 @@ function renderTacticalMap() {
   // svg 標記只和下列狀態有關；每次點地圖不再重組大量 SVG。
   const signature = JSON.stringify([
     p.zone, state.closedZones, state.pendingCloseZones, state.trackedItemId,
-    missingMats, zones.map(z => z.id)
+    missingMats, zones.map(z => z.id),
+    getActiveTrackedOpponent(p)?.id || null, getActiveTrackedOpponent(p)?.zone || null,
+    getActiveTrackedOpponent(p) ? Math.ceil(p.trackedOpponentUntil - state.aiTimeSec) : 0
   ]);
   if (signature === lastTacticalMapSignature && document.getElementById('tactical-map-svg')) return;
   const mapW = 1600;
@@ -2493,6 +2576,7 @@ function renderTacticalMap() {
     const isClosed = state.closedZones.includes(z.id);
     const isPendingClose = !isClosed && state.pendingCloseZones.includes(z.id);
     const baseDrops = z.initialDrops || z.drops || [];
+    const markedHere = getActiveTrackedOpponent(p)?.zone === z.id ? getActiveTrackedOpponent(p) : null;
     const hasNeededMaterial = missingMats.some(mId =>
       baseDrops.some(d => (ItemRegistry.ALIAS[d] || d) === mId)
     );
@@ -2532,6 +2616,14 @@ function renderTacticalMap() {
           <text x="${textX}" y="${label.y + 10 * MAP_LABEL_SCALE}" text-anchor="middle" font-size="${26 * MAP_LABEL_SCALE}" font-weight="900" fill="${textFill}" style="letter-spacing:${0.5 * MAP_LABEL_SCALE}px;">${z.name}</text>
         </g>`);
 
+      if (markedHere) {
+        // 眼睛標記不接受點擊，會跟著對手的真實位置動態移動。
+        const remaining = Math.max(1, Math.ceil(p.trackedOpponentUntil - state.aiTimeSec));
+        svgParts.push(`<g pointer-events="none" filter="url(#label-shadow)">
+          <rect x="${label.x - 98}" y="${y + h + 10}" width="196" height="54" rx="17" fill="#581c87" stroke="#e879f9" stroke-width="4" />
+          <text x="${label.x}" y="${y + h + 43}" text-anchor="middle" font-size="22" font-weight="900" fill="#ffffff">👁️ ${markedHere.name} ${remaining}s</text>
+        </g>`);
+      }
       if (isClosed) {
         const triCx = label.x;
         const triCy = label.y - 1 * MAP_LABEL_SCALE;

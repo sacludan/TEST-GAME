@@ -892,6 +892,7 @@ function moveAIToSafeZone(ai, targetZone = null) {
   if (nextZone && nextZone.id !== ai.zone) {
     ai.sp -= AI_MOVE_SP_COST;
     ai.zone = nextZone.id;
+    if (ai.id === "wuzhongxian" && balanceHasPassive(ai)) ai.firstSearchAmbushPending = true;
     ai.lastAIAction = `前往${nextZone.name}`;
 
     return true;
@@ -1165,7 +1166,7 @@ function aiUseCombatSkill(attacker, defender) {
   const hpRatio = attacker.hp / Math.max(1, attacker.maxHp);
   const defenderRatio = defender.hp / Math.max(1, defender.maxHp);
   const wanted = defenderRatio < 0.75 || hpRatio < 0.62 ||
-    ["zhugouliang", "yazhoutongshen", "jiangwanan", "chenaguan"].includes(attacker.id);
+    ["zhugouliang", "yazhoutongshen", "jiangwanan", "chenaguan", "wuzhongxian", "huangguocong"].includes(attacker.id);
   if (!wanted || Math.random() > (aiIsHard() ? 0.90 : 0.46)) return false;
 
   const enemyHpBeforeSkill = defender.hp;
@@ -1209,6 +1210,25 @@ function aiUseCombatSkill(attacker, defender) {
       break;
     case "hanguoyu": {
       for (let i = 0; i < 3; i++) if (lootOneItemForAI(attacker)) grantSearchGrowth(attacker);
+      break;
+    }
+    case "huangguocong": {
+      const hpBefore = defender.hp;
+      damage = aiSkillDamage(attacker, defender, 1);
+      if (damage > 0 && defender.hp < hpBefore) knockRandomBagItem(attacker, defender);
+      break;
+    }
+    case "mayingjiu": {
+      const drained = Math.ceil(Math.max(0, defender.sp) / 2);
+      if (drained > 0) {
+        const hit = resolveCombatHit(attacker, defender, Math.round(drained / 2), {exactDamage: true});
+        damage = hit.damage;
+        if (damage > 0) defender.sp = Math.max(0, defender.sp - drained);
+      }
+      break;
+    }
+    case "wuzhongxian": {
+      markTrackedOpponent(attacker, defender);
       break;
     }
     default:
@@ -1349,12 +1369,14 @@ function runAIBrain() {
           // 只有「完成搜刮」才可能遇敵；玩家也是合法目標，但 NPC 攻擊真人
           // 只單向結算傷害／技能，不彈戰鬥面板，也不附贈玩家反擊。
           const rivals = aiLivingThreats(ai);
+          const forcedFirstSearch = ai.id === "wuzhongxian" && balanceHasPassive(ai) && ai.firstSearchAmbushPending;
+          if (forcedFirstSearch) ai.firstSearchAmbushPending = false;
           // 先抽原本的 65% 遭遇骰，成功才抽對手；沒有雷達時保留舊版的亂數消耗順序。
           const encounterRoll = Math.random();
-          const opponent = rivals.length && encounterRoll < 0.65 ? aiChooseDuelTarget(ai, rivals) : null;
-          const duel = opponent && encounterRoll < getSearchEncounterChance(ai, opponent) ? opponent : null;
+          const opponent = rivals.length && (forcedFirstSearch || encounterRoll < 0.65) ? aiChooseDuelTarget(ai, rivals) : null;
+          const duel = opponent && (forcedFirstSearch || encounterRoll < getSearchEncounterChance(ai, opponent)) ? opponent : null;
           if (duel) {
-            const avoided = aiTryAvoidSearchEncounter(ai, duel);
+            const avoided = forcedFirstSearch ? false : aiTryAvoidSearchEncounter(ai, duel);
             if (!avoided) {
               // 沒有實際補血或成功逃離，就 100% 攻擊／施技。沒有自動反擊。
               if (duel === state.player) aiAttackPlayerOnSearch(ai);
@@ -1433,6 +1455,12 @@ function runAIBrain() {
       }
     }
 
+    // 吳忠憲標記後可以合理地前往目標所在地；不能穿越已封鎖區域。
+    const marked = ai.id === 'wuzhongxian' ? getActiveTrackedOpponent(ai) : null;
+    if (marked && marked.zone !== ai.zone && ai.sp >= AI_MOVE_SP_COST && !state.closedZones.includes(marked.zone)) {
+      const destination = getSafeZones().find(z => z.id === marked.zone);
+      if (destination && moveAIToSafeZone(ai, destination)) { aiCommitAction(ai); return; }
+    }
     const plan = aiGetCurrentTargetPlan(ai);
     if (!ai.aiSeekingHealing && tryAutoCraftForAI(ai) > 0) { aiCommitAction(ai); return; }
 

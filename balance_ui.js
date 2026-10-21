@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const start = $('start'), stop = $('stop'), count = $('count');
   const progressArea = $('progress-area'), progressFill = $('progress-fill'), progressBar = $('progress-bar');
-  let jobs = [], batchReports = [], totalCompleted = 0, nextMatchIndex = 0, batchSize = 9, runStartMs = 0, running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
+  let jobs = [], batchReports = [], totalCompleted = 0, nextMatchIndex = 0, batchSize = 12, runStartMs = 0, running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
   const heroes = (typeof GAME_CHARACTERS !== 'undefined') ? GAME_CHARACTERS : {};
   function setupSkills() {
     $('skill-list').innerHTML = Object.values(heroes).map(h => `
@@ -29,8 +29,8 @@
       ...(!v.active ? [`${heroes[id].name}【${heroes[id].skill.name}】`] : []),
       ...(!v.passive ? [`${heroes[id].name}【${heroes[id].passive.name}】`] : [])
     ]);
-    $('skill-summary').textContent=disabled.length ? `關閉 ${disabled.length} 項：${disabled.join('、')}` : '目前 18 項技能全部啟用（正式版狀態）。';
-    $('skill-collapsed-summary').textContent = disabled.length ? `已停用 ${disabled.length} 項技能` : '18 項技能全部啟用';
+    $('skill-summary').textContent=disabled.length ? `關閉 ${disabled.length} 項：${disabled.join('、')}` : `目前 ${Object.keys(heroes).length * 2} 項技能全部啟用（正式版狀態）。`;
+    $('skill-collapsed-summary').textContent = disabled.length ? `已停用 ${disabled.length} 項技能` : `${Object.keys(heroes).length * 2} 項技能全部啟用`;
   }
   function toggleAll(type,flag) {
     document.querySelectorAll('.skill-switch').forEach(el => {if(type==='all'||el.dataset.skill===type) el.checked=flag;});
@@ -131,7 +131,7 @@
     'healing','hits','dodges','crafts','loots','moves','foodUses','equipScore',
     'equipRarity','level','kills','pigSaved'];
   function combineReports(reports) {
-    const output = {roster:[],rankWins:Array.from({length:9},()=>({games:0,wins:0})),
+    const output = {roster:[],rankWins:Array.from({length:Object.keys(heroes).length},()=>({games:0,wins:0})),
       draws:0,completed:0,avgSeconds:0};
     const byId = new Map();
     let secondsSum=0;
@@ -232,7 +232,7 @@
     const skillSwitches=getSwitches();
     const workerCount=chosenCores(n);
     // 動態配給約 6 輪工作，每批最多 36 局；少量測試也能充分使用 Worker。
-    // 每場仍以原本全域編號產生種子、並以 9 場區塊輪換順位。
+    // 每場仍以全域編號產生種子、並以 12 場區塊輪換順位。
     batchSize=Math.max(1,Math.min(36,Math.ceil(n/(workerCount*6))));
     batchReports=[];totalCompleted=0;nextMatchIndex=0;
     report=null;currentSettings={seed:rawSeed,requested:n,difficulty:$('difficulty').value,
@@ -248,7 +248,7 @@
     try {
       jobs=[];
       for(let i=0;i<workerCount;i++) {
-        const worker=new Worker('balance_worker.js?v=16');
+        const worker=new Worker('balance_worker.js?v=1962');
         jobs.push({worker,progress:0,done:false,batch:null});
       }
     } catch(e) {

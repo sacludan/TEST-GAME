@@ -1,6 +1,6 @@
 /**
  * 【模組：角色與技能資料庫 characters.js】
- * v58：完整收錄 9 位台灣傳奇角色與主被動設定（開局空背包）
+ * v58：完整收錄 12 位台灣傳奇角色與主被動設定（開局空背包）
  */
 const GAME_CHARACTERS = {
   zhugouliang: {
@@ -253,5 +253,33 @@ const GAME_CHARACTERS = {
       name: "問A答B",
       desc: "技能就緒時，受到攻擊有 70% 機率完全閃避；成功後冷卻 35 秒，失敗後不進入冷卻"
     }
+  }
+  ,
+  huangguocong: {
+    id: "huangguocong", name: "黃國蔥", title: "強制掉落／擊殺升階型",
+    baseAtk: 13, baseDef: 12, maxHp: 124, hp: 124, maxSp: 120, sp: 120,
+    alive: true, zone: "ly", bag: [],
+    equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
+    skill: { name: "太離譜了", icon: "📢", cd: 35, costSp: 25, combatOnly: true,
+      desc: "攻擊 1 倍傷害；命中後對方背包（不含已穿戴裝備）隨機掉落 1 件道具到當前地區。空背包不掉落。" },
+    passive: { name: "戰神", desc: "每次真正淘汰敵人，隨機將身上一件可升階的裝備提升 1 階（最高紅裝；無可升階裝備時不觸發）。" }
+  },
+  wuzhongxian: {
+    id: "wuzhongxian", name: "吳忠憲", title: "追蹤／獵人型",
+    baseAtk: 13, baseDef: 11, maxHp: 125, hp: 125, maxSp: 120, sp: 120,
+    alive: true, zone: "ly", bag: [],
+    equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
+    skill: { name: "見鬼啦", icon: "👻", cd: 40, costSp: 25, combatOnly: true,
+      desc: "標記遭遇的敵人 30 秒；即使敵人移動，也能在地圖看見其當前所在區域。沒有直接傷害。" },
+    passive: { name: "我猜我猜我猜猜猜", desc: "每次移動到另一區域後，首次搜刮若當地有可遭遇角色，必定觸發遭遇。" }
+  },
+  mayingjiu: {
+    id: "mayingjiu", name: "馬英酒", title: "削減體力／背水型",
+    baseAtk: 12, baseDef: 13, maxHp: 126, hp: 126, maxSp: 125, sp: 125,
+    alive: true, zone: "ly", bag: [],
+    equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
+    skill: { name: "死亡之握", icon: "🤝", cd: 35, costSp: 25, combatOnly: true,
+      desc: "成功命中使目標當前 SP 減少一半，造成被減少 SP 的一半傷害（無 SP 不傷害）。仍受護盾與簡單減傷影響。" },
+    passive: { name: "馬上就好", desc: "當前 SP 越低造成的戰鬥傷害越高，最低 1 倍、最高 1.5 倍。" }
   }
 };

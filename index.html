@@ -425,23 +425,33 @@
               <div class="text-[11px] text-rose-300/90 mt-1">玩家承受正常傷害，電腦更積極發育與使用技能。</div>
             </button>
           </div>
+          <div class="rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-3 space-y-2">
+            <div class="flex items-center justify-between gap-2 text-[11px] font-black text-slate-200">
+              <label for="lobby-player-count">👥 對戰總人數</label>
+              <span id="lobby-player-count-value" class="text-amber-300">10 人（你 + 9 位電腦）</span>
+            </div>
+            <input id="lobby-player-count" type="range" min="9" max="12" step="1" value="10"
+              oninput="LobbyManager.setPlayerCount(this.value)" aria-label="對戰人數" class="w-full accent-amber-400" />
+            <div class="flex justify-between text-[10px] text-slate-400 font-bold"><span>9 人</span><span>10</span><span>11</span><span>12 人</span></div>
+            <div class="text-[10px] text-slate-400">僅正式對戰有效；教學固定劇情不受影響。</div>
+          </div>
           <button type="button" onclick="LobbyManager.closeDifficultyModal()" class="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-black text-slate-200 active:scale-95">取消</button>
         </div>
       </div>
 
-      <!-- 角色選擇彈窗：標題固定頂部；角色資訊與九位角色固定靠底，中央留給未來人物美術 -->
+      <!-- 角色選擇彈窗：12 位角色，角色資訊與格子可捲動。 -->
       <div id="character-select-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col p-4 pt-6 pb-5 text-left">
         <div class="h-full min-h-0 flex flex-col">
           <!-- 頂部標題與關閉按鈕的位置保持不變 -->
           <div class="flex justify-between items-center border-b border-slate-800 pb-2 shrink-0">
             <div>
               <h3 class="text-base font-black text-amber-300">👤 角色選擇</h3>
-              <p class="text-[10px] text-slate-400">選一位你要操作的角色，其他 8 位會交給電腦。</p>
+              <p class="text-[10px] text-slate-400">選一位你要操作的角色，將從剩餘角色中隨機選出電腦對手。</p>
             </div>
             <button onclick="LobbyManager.closeCharacterSelectModal()" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold">關閉</button>
           </div>
 
-          <!-- 選角人物立繪區：9 位角色皆有專屬透明立繪，保留下方資訊區尺寸。 -->
+          <!-- 選角人物立繪區：12 位角色皆有專屬立繪，保留下方資訊區尺寸。 -->
           <div class="flex-1 min-h-0 flex flex-col">
             <div id="lobby-char-art-stage" class="relative flex-1 min-h-0 flex items-end justify-center overflow-hidden" aria-hidden="true">
               <div id="lobby-char-art-glow" class="hidden absolute bottom-0 inset-x-0 h-3/4 pointer-events-none" style="background:radial-gradient(ellipse at center bottom,rgba(148,163,184,.16),transparent 64%)"></div>
@@ -449,7 +459,7 @@
                    class="hidden relative h-full max-w-full w-auto object-contain object-bottom pointer-events-none select-none"
                    style="filter:drop-shadow(0 8px 14px rgba(0,0,0,.75));-webkit-user-drag:none;" />
             </div>
-            <!-- 身高較小的手機優先維持九位角色都可點擊，資訊區可獨立捲動。 -->
+            <!-- 身高較小的手機優先維持全部 12 位角色都可點擊，資訊區可獨立捲動。 -->
             <div class="shrink-0 max-h-[65%] overflow-y-auto overscroll-contain custom-scrollbar pb-1">
               <div id="lobby-char-preview" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-left mt-2"></div>
               <div id="lobby-char-grid" class="grid grid-cols-3 gap-1.5 mt-3 content-start"></div>
@@ -481,7 +491,7 @@
 
           <a href="balance.html?v=16" class="block w-full text-left p-3 rounded-xl border border-amber-600/80 bg-amber-950/35 hover:bg-amber-900/40 active:scale-[0.99] transition">
             <div class="text-sm font-black text-amber-300">⚖️ AI 平衡實驗室</div>
-            <div class="text-[11px] text-slate-300 mt-1">9 位角色自動對戰、批次模擬、勝率與執行順位統計，支援 CSV 匯出。</div>
+            <div class="text-[11px] text-slate-300 mt-1">12 位角色自動對戰、批次模擬、勝率與執行順位統計，支援 CSV 匯出。</div>
           </a>
         </div>
       </div>
@@ -1030,14 +1040,14 @@
   <script src="items_food.js?v=60"></script>
   <script src="recipes.js?v=60"></script>
   <script src="maps.js?v=72"></script>
-  <script src="characters.js?v=72"></script>
+  <script src="characters.js?v=1962"></script>
   <script src="game_config.js?v=60"></script>
   
-  <script src="growth.js?v=119"></script>
-  <script src="lobby.js?v=1957"></script>
-  <script src="ai.js?v=1959"></script>
-  <script src="combat.js?v=1959"></script>
-  <script src="main.js?v=1959"></script>
+  <script src="growth.js?v=1962"></script>
+  <script src="lobby.js?v=1962"></script>
+  <script src="ai.js?v=1962"></script>
+  <script src="combat.js?v=1962"></script>
+  <script src="main.js?v=1962"></script>
   <script src="corpse.js?v=1953"></script>
   <script src="growth_ui.js?v=117"></script>
   <script src="audio_manager.js?v=1956"></script>

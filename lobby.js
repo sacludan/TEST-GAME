@@ -5,6 +5,7 @@
 const LobbyManager = {
   selectedPlayerId: "zhugouliang",
   selectedDifficulty: "easy",
+  selectedPlayerCount: 10,
   selectedTestBotIds: [],
   // Nine selectable characters each have one portrait, including the original 科文哲 art.
   characterArtworkPaths: Object.freeze({
@@ -16,7 +17,10 @@ const LobbyManager = {
     yazhoutongshen: "assets/characters/yazhoutongshen.webp?v=19.31",
     chaoge: "assets/characters/chaoge.webp?v=19.31",
     wangshijian: "assets/characters/wangshijian.webp?v=19.31",
-    jiangwanan: "assets/characters/jiangwanan.webp?v=19.31"
+    jiangwanan: "assets/characters/jiangwanan.webp?v=19.31",
+    huangguocong: "assets/characters/huangguocong.webp?v=1962",
+    wuzhongxian: "assets/characters/wuzhongxian.webp?v=1962",
+    mayingjiu: "assets/characters/mayingjiu.webp?v=1962"
   }),
   characterArtworkCache: Object.create(null),
 
@@ -45,6 +49,7 @@ const LobbyManager = {
     this.renderTestBotsList();
     this.updateSelectedCharacterSummary();
     this.selectDifficulty(this.selectedDifficulty);
+    this.setPlayerCount(this.selectedPlayerCount);
     this.preloadCharacterArtwork();
   },
 
@@ -55,6 +60,14 @@ const LobbyManager = {
     if (!cur) return;
     if (summaryEl) summaryEl.textContent = `${cur.name}｜${cur.title}`;
     if (inlineEl) inlineEl.textContent = cur.name;
+  },
+
+  setPlayerCount(value) {
+    this.selectedPlayerCount = Math.max(9, Math.min(12, Math.round(Number(value) || 10)));
+    const slider = document.getElementById("lobby-player-count");
+    const label = document.getElementById("lobby-player-count-value");
+    if (slider) slider.value = String(this.selectedPlayerCount);
+    if (label) label.textContent = `${this.selectedPlayerCount} 人（你 + ${this.selectedPlayerCount - 1} 位電腦）`;
   },
 
   selectDifficulty(value) {
@@ -343,7 +356,7 @@ const LobbyManager = {
 
     if (typeof initGame === "function") {
       initGame(mode, mode === 'tutorial' ? 'chenaguan' : this.selectedPlayerId,
-        mode === 'tutorial' ? [] : [...this.selectedTestBotIds], this.selectedDifficulty);
+        mode === 'tutorial' ? [] : [...this.selectedTestBotIds], this.selectedDifficulty, this.selectedPlayerCount);
       if (mode === 'tutorial' && window.TutorialMode) window.TutorialMode.start();
     } else {
       console.error("找不到 initGame 函式！");
