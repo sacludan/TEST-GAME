@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const start = $('start'), stop = $('stop'), count = $('count');
+  const start = $('start'), stop = $('stop'), count = $('count'), playerCountInput = $('player-count');
   const progressArea = $('progress-area'), progressFill = $('progress-fill'), progressBar = $('progress-bar');
   let jobs = [], batchReports = [], totalCompleted = 0, nextMatchIndex = 0, batchSize = 12, runStartMs = 0, running = false, abortRequested = false, report = null, currentSettings = null, baseline = null, sortBy = 'winRate', desc = true;
   const heroes = (typeof GAME_CHARACTERS !== 'undefined') ? GAME_CHARACTERS : {};
@@ -40,11 +40,12 @@
     const switches=baseline?.settings.skillSwitches || {};
     const disabled=Object.values(switches).reduce((n,v)=>n+(v.active===false?1:0)+(v.passive===false?1:0),0);
     $('baseline-info').textContent=baseline
-      ? `★ 比較基準：${baseline.report.completed} 場、種子 ${baseline.settings.seed}、關閉 ${disabled} 項技能。表格顯示相對基準的冠軍率差（百分點）；建議兩次測試使用相同場數、難度與種子。`
+      ? `★ 比較基準：${baseline.report.completed} 場、${baseline.settings.playerCount || 12} 人、種子 ${baseline.settings.seed}、關閉 ${disabled} 項技能。表格顯示相對基準的冠軍率差（百分點）；請使用相同參戰人數、場數、難度與種子。`
       : '尚未設定比較基準。先跑全開測試，按「設為比較基準」，再關閉技能重新測試。';
     $('clear-baseline').disabled=!baseline;
   }
   function baselineDelta(row) {
+    if (baseline && currentSettings && baseline.settings.playerCount !== currentSettings.playerCount) return '';
     const ref=baseline?.report.roster.find(r=>r.id===row.id);
     if(!ref) return '';
     const d=row.winRate-ref.winRate;
@@ -60,7 +61,7 @@
   }
   function busy(flag) {
     start.disabled = flag; stop.disabled = !flag;
-    count.disabled = flag; $('seed').disabled = flag; $('difficulty').disabled = flag; $('cores').disabled = flag;
+    count.disabled = flag; playerCountInput.disabled = flag; $('seed').disabled = flag; $('difficulty').disabled = flag; $('cores').disabled = flag;
     document.querySelectorAll('[data-count]').forEach(el => el.disabled=flag);
     document.querySelectorAll('.skill-switch').forEach(el=>el.disabled=flag);
     ['all-on','all-actives-off','all-passives-off'].forEach(id=>$(id).disabled=flag);
@@ -101,7 +102,7 @@
     }).join('');
   }
   function graph(container, items, labelKey, winsKey, gamesKey) {
-    const max = Math.max(11.11,...items.map(r=>100*r[winsKey]/Math.max(1,r[gamesKey])));
+    const max = Math.max(100/(currentSettings?.playerCount || 10),...items.map(r=>100*r[winsKey]/Math.max(1,r[gamesKey])));
     container.innerHTML=items.map(r=>{
       const pct=100*r[winsKey]/Math.max(1,r[gamesKey]);
       return `<div class="brow"><span>${escapeHTML(String(r[labelKey]))}</span><div class="track"><div class="fill" style="width:${100*pct/max}%"></div></div><strong>${num(pct)}% <small class="sub">(${r[winsKey]}/${r[gamesKey]})</small></strong></div>`;
@@ -116,6 +117,7 @@
     graph($('chart-win'),[...report.roster].sort((a,b)=>b.winRate-a.winRate),'name','wins','games');
     graph($('chart-order'),report.rankWins.map((r,i)=>({...r,label:'第 '+(i+1)+' 位'})),'label','wins','games');
     const n=report.completed;
+    $('s-chance').textContent=num(100 / (currentSettings?.playerCount || 10),2)+'%';
     const zero=report.roster.filter(r=>r.skills===0).map(r=>r.name);
     const maxPosition=report.rankWins.reduce((acc,r,i)=>r.games&&r.wins/r.games>acc.rate?{place:i+1,rate:r.wins/r.games}:acc,{place:0,rate:-1});
     const analysis=[];
@@ -131,7 +133,7 @@
     'healing','hits','dodges','crafts','loots','moves','foodUses','equipScore',
     'equipRarity','level','kills','pigSaved'];
   function combineReports(reports) {
-    const output = {roster:[],rankWins:Array.from({length:Object.keys(heroes).length},()=>({games:0,wins:0})),
+    const output = {roster:[],rankWins:Array.from({length:currentSettings?.playerCount || 10},()=>({games:0,wins:0})),
       draws:0,completed:0,avgSeconds:0};
     const byId = new Map();
     let secondsSum=0;
@@ -220,7 +222,7 @@
     job.batch={startIndex,count:size};
     job.worker.postMessage({type:'batch',batchId:startIndex,count:size,startIndex,
       seed:currentSettings.seed,difficulty:currentSettings.difficulty,
-      skillSwitches:currentSettings.skillSwitches});
+      playerCount:currentSettings.playerCount,skillSwitches:currentSettings.skillSwitches});
   }
   function launch() {
     if(running) return;
@@ -229,6 +231,8 @@
     if(!Number.isInteger(n)||n<1||n>10000) return message('場次請輸入 1～10,000 的整數。',true);
     if(!Number.isInteger(rawSeed)||rawSeed<1||rawSeed>4294967295) return message('隨機種子請輸入 1～4,294,967,295 的整數。',true);
     if(typeof Worker==='undefined') return message('這個瀏覽器不支援 Web Worker，無法執行模擬。',true);
+    const playerCount=Number(playerCountInput.value);
+    if (!Number.isInteger(playerCount) || playerCount<9 || playerCount>12) return message('對戰人數必須在 9～12 人之間。',true);
     const skillSwitches=getSwitches();
     const workerCount=chosenCores(n);
     // 動態配給約 6 輪工作，每批最多 36 局；少量測試也能充分使用 Worker。
@@ -236,7 +240,7 @@
     batchSize=Math.max(1,Math.min(36,Math.ceil(n/(workerCount*6))));
     batchReports=[];totalCompleted=0;nextMatchIndex=0;
     report=null;currentSettings={seed:rawSeed,requested:n,difficulty:$('difficulty').value,
-      skillSwitches,parallelMode:$('cores').value,workersUsed:workerCount};
+      playerCount,skillSwitches,parallelMode:$('cores').value,workersUsed:workerCount};
     $('csv').disabled=true;$('json').disabled=true;$('save-baseline').disabled=true;
     $('roster-body').innerHTML='<tr><td colspan="11" class="placeholder">模擬中，完成後會顯示實際結果…</td></tr>';
     $('chart-win').innerHTML='<div class="placeholder">模擬中</div>';
@@ -248,7 +252,7 @@
     try {
       jobs=[];
       for(let i=0;i<workerCount;i++) {
-        const worker=new Worker('balance_worker.js?v=1962');
+        const worker=new Worker('balance_worker.js?v=1963');
         jobs.push({worker,progress:0,done:false,batch:null});
       }
     } catch(e) {
@@ -299,14 +303,19 @@
       return [r.id,r.name,r.games,r.wins,r.winRate,...bounds,r.top3Rate,r.rank,r.survival,r.damageDealt,r.damageTaken,r.kills,r.healing,r.skills,r.hits,r.dodges,r.reflected,r.loots,r.crafts,r.moves,r.foodUses,r.equipScore,r.equipRarity,r.level,r.pigSaved,baseline? r.winRate-(baseline.report.roster.find(x=>x.id===r.id)?.winRate ?? 0) : ''];
     });
     const pos=report.rankWins.map((r,i)=>['順位 '+(i+1),'',r.games,r.wins,r.games?100*r.wins/r.games:0]);
-    const metadata=[['設定','場數',currentSettings.requested,'難度',currentSettings.difficulty,'種子',currentSettings.seed,'Worker數',currentSettings.workersUsed,'模式',currentSettings.parallelMode],
+    const metadata=[['設定','場數',currentSettings.requested,'單場人數',currentSettings.playerCount,'難度',currentSettings.difficulty,'種子',currentSettings.seed,'Worker數',currentSettings.workersUsed,'模式',currentSettings.parallelMode],
       ['技能開關(JSON)',JSON.stringify(currentSettings.skillSwitches)],
       ['結果','完成',report.completed,'無冠軍',report.draws,'實際耗時秒數',currentSettings.elapsedSeconds]];
     if(baseline) metadata.push(['比較基準場數',baseline.report.completed,'比較基準種子',baseline.settings.seed]);
     const contents=[...metadata,[''],headers,...rows,[''],['執行順位','', '機會次數','勝場','勝率%'],...pos].map(r=>r.map(csvCell).join(',')).join('\r\n');
     download('balance_'+currentSettings.seed+'_'+report.completed+'.csv','\uFEFF'+contents,'text/csv;charset=utf-8');
   }
-  setupSkills();updateBaselineInfo();showCores();
+  function updatePlayerCount() {
+    $('player-count-value').textContent = `${playerCountInput.value} 人`;
+    if (!report) $('s-chance').textContent = num(100 / Number(playerCountInput.value),2)+'%';
+  }
+  setupSkills();updateBaselineInfo();showCores();updatePlayerCount();
+  playerCountInput.addEventListener('input',updatePlayerCount);
   $('all-on').addEventListener('click',()=>toggleAll('all',true));
   $('all-actives-off').addEventListener('click',()=>toggleAll('active',false));
   $('all-passives-off').addEventListener('click',()=>toggleAll('passive',false));
@@ -325,7 +334,7 @@
     stop.disabled=true;message('正在停止：目前的小批次完成後保留所有結果，不再派發新工作…');
   });
   $('csv').addEventListener('click',exportCsv);
-  $('json').addEventListener('click',()=>{if(report)download('balance_'+currentSettings.seed+'_'+report.completed+'.json',JSON.stringify({settings:currentSettings,report,limitations:'九名 NPC 自動模擬；非真人玩家勝率'},null,2),'application/json');});
+  $('json').addEventListener('click',()=>{if(report)download('balance_'+currentSettings.seed+'_'+report.completed+'.json',JSON.stringify({settings:currentSettings,report,limitations:'9～12 名 NPC 自動模擬；非真人玩家勝率'},null,2),'application/json');});
   document.querySelectorAll('[data-count]').forEach(chip=>chip.addEventListener('click',()=>{
     count.value=chip.dataset.count;showCores();
     document.querySelectorAll('[data-count]').forEach(x=>x.classList.toggle('active',x===chip));

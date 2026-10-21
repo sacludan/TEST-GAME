@@ -335,17 +335,23 @@ function resolveCombatHit(attacker, defender, rawDamage, options = {}) {
   const songDefenseBuff = isSongShowCasterBuffActive(defender);
   const originalHit = options.exactDamage ? Math.max(0, Math.round(rawDamage)) : Math.max(6, Math.round(rawDamage));
   const rawHit = songAttackBuff ? Math.max(1, Math.round(originalHit * 1.2)) : originalHit;
-  // 馬英酒【馬上就好】：所有造成的戰鬥傷害依現有 SP 等比例強化，最高 +50%。
+  // 馬英酒【馬上就好】：所有造成的戰鬥傷害依現有 SP 等比例強化，最高 +100%。
   const spRatio = attacker.maxSp > 0 ? Math.max(0, Math.min(1, attacker.sp / attacker.maxSp)) : 1;
   const warhorseHit = attacker.id === 'mayingjiu' && balanceHasPassive(attacker)
-    ? Math.max(1, Math.round(rawHit * (1 + 0.5 * (1 - spRatio)))) : rawHit;
+    ? Math.max(1, Math.round(rawHit * (1 + (1 - spRatio)))) : rawHit;
   // 亞洲桶神：8 秒內承受攻擊傷害 -50%；僅前兩次有效命中反彈原始傷害。
   const shielding = defender.reflectRemain > 0;
   let damage = shielding ? Math.max(1, Math.round(warhorseHit * 0.5)) : warhorseHit;
   if (songDefenseBuff) damage = Math.max(1, Math.round(damage * 0.9));
   damage = applyEasyPlayerDamageReduction(damage, defender);
+  const defenderHpBefore = defender.hp;
   defender.hp = Math.max(0, defender.hp - damage);
   result.damage = damage;
+  // 直接戰鬥命中才計入黃國蔥戰神，且只算真的損失的 HP（避免殘血溢出刷進度）。
+  // 此鉤子由玩家普通攻擊、主動技能、AI 對戰與 AI 搜刮遭遇共用。
+  if (typeof recordWarGodCombatDamage === 'function') {
+    recordWarGodCombatDamage(attacker, Math.max(0, defenderHpBefore - defender.hp));
+  }
   if (shielding && (defender.reflectCharges || 0) > 0) {
     defender.reflectCharges--;
     // 反彈也屬戰鬥傷害，若豬哥亮為反彈承受者且開秀增益有效，同樣減傷 10%。
@@ -356,7 +362,7 @@ function resolveCombatHit(attacker, defender, rawDamage, options = {}) {
   }
   if (defender.id === "kewenzhe" && balanceHasPassive(defender) && defender.hp > 0) {
     defender.hitTakenCount = (defender.hitTakenCount || 0) + 1;
-    if (defender.hitTakenCount >= 3) {
+    if (defender.hitTakenCount >= 4) {
       defender.hitTakenCount = 0;
       result.heal = Math.min(12, defender.maxHp - defender.hp);
       defender.hp += result.heal;
@@ -475,7 +481,7 @@ function executeCombatAction(action) {
       }
       case "kewenzhe": {
         const missingRatio = 1 - (p.hp / p.maxHp);
-        const mult = +(1 + missingRatio).toFixed(2);
+        const mult = +(1 + 0.5 * missingRatio).toFixed(2);
         const dmg = applyDamageToTarget(p, ai, baseDmg * mult, true, "飛輪衝撞");
         addLog(`🚲 <span class="text-purple-300 font-black">【飛輪衝撞】</span> 依當前血量觸發 ${mult} 倍威力，對 ${ai.name} 造成 <span class="text-amber-300 font-black">${dmg}</span> 點傷害！`, "text-purple-300 font-bold");
         break;
@@ -550,8 +556,9 @@ function executeCombatAction(action) {
         break;
       }
       case "wuzhongxian": {
+        const dmg = applyDamageToTarget(p, ai, baseDmg, false, '見鬼啦');
         markTrackedOpponent(p, ai);
-        addLog(`👻 【見鬼啦】已標記 ${ai.name}，持續 30 秒（此技能不造成傷害）。`, 'text-fuchsia-300 font-bold');
+        addLog(`👻 【見鬼啦】對 ${ai.name} 造成 ${dmg} 點傷害，並標記 30 秒！`, 'text-fuchsia-300 font-bold');
         break;
       }
     }

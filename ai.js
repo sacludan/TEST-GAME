@@ -1176,7 +1176,7 @@ function aiUseCombatSkill(attacker, defender) {
   let damage = 0;
   switch (attacker.id) {
     case "kewenzhe":
-      damage = aiSkillDamage(attacker, defender, 1.5 + hpMissing * 0.5);
+      damage = aiSkillDamage(attacker, defender, 1 + hpMissing * 0.5);
       break;
     case "laixiangde":
       damage = aiSkillDamage(attacker, defender, 1);
@@ -1228,6 +1228,7 @@ function aiUseCombatSkill(attacker, defender) {
       break;
     }
     case "wuzhongxian": {
+      damage = aiSkillDamage(attacker, defender, 1);
       markTrackedOpponent(attacker, defender);
       break;
     }

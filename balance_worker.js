@@ -4,8 +4,8 @@ self.window = self;
 self.document = { readyState: 'loading', addEventListener() {}, getElementById() { return null; } };
 importScripts(
   'items_weapon.js', 'items_armor.js', 'items_material.js', 'items_food.js',
-  'recipes.js', 'maps.js', 'characters.js?v=1962', 'game_config.js',
-  'growth.js?v=1962', 'ai.js?v=1962', 'combat.js?v=1962', 'main.js?v=1962', 'corpse.js?v=1953'
+  'recipes.js', 'maps.js', 'characters.js?v=1963', 'game_config.js',
+  'growth.js?v=1963', 'ai.js?v=1963', 'combat.js?v=1963', 'main.js?v=1963', 'corpse.js?v=1953'
 );
 // 避免每場產生 HTML 戰報。保留主程式的所有戰鬥、合成與 NPC 決策規則。
 addLog = function () {};
@@ -155,15 +155,17 @@ function emptyMetrics(id, position) {
 }
 function zoneClone(zone) { return {...zone, drops:[...zone.drops], initialDrops:[...new Set(zone.drops)]}; }
 const MAX_SIM_SECONDS = 1200;
-function simulate(matchNumber, seed, difficulty, rotationBlock) {
-  // 同一組 12 場採用同一個隨機基底排列，循環位移，讓每個角色各站過每個行動順位一次。
+function simulate(matchNumber, seed, difficulty, rotationBlock, playerCount) {
+  // 每十二場使用同一洗牌基底；依全域場次輪替取前 N 位。
+  // 在完整 12 場區塊中，每個角色剛好參戰 N 次，且每個參戰順位各站一次。
   // 不同組打散基底排列；起始區每場獨立隨機抽樣，且每名角色位於不同起始區。
   Math.random = seededRandom((seed ^ Math.imul(matchNumber + 1, 0x9E3779B9)) >>> 0);
   // 透過定序區塊的排列與輪轉控制順位；與隨機起始位置抽樣獨立。
-  const order = rotationBlock.slice(matchNumber % heroIds.length).concat(rotationBlock.slice(0, matchNumber % heroIds.length));
+  const rotation = matchNumber % heroIds.length;
+  const order = rotationBlock.slice(rotation).concat(rotationBlock.slice(0, rotation)).slice(0, playerCount);
   const spawnById = Object.create(null);
   // 與正式版相同：每位 NPC 獨立隨機選擇地圖，可能出生在相同區域。
-  heroIds.forEach(id => {
+  order.forEach(id => {
     spawnById[id] = MAPS_DATA.zones[Math.floor(Math.random() * MAPS_DATA.zones.length)].id;
   });
 
@@ -242,9 +244,9 @@ function simulate(matchNumber, seed, difficulty, rotationBlock) {
   return {winnerId, seconds:finalSeconds, characters:results};
 }
 
-function aggregate(matches) {
+function aggregate(matches, playerCount) {
   const totals = Object.create(null);
-  const rankWins = Array.from({length: heroIds.length}, () => ({games:0,wins:0}));
+  const rankWins = Array.from({length: playerCount}, () => ({games:0,wins:0}));
   for (const id of heroIds) {
     totals[id] = {id, name:GAME_CHARACTERS[id].name, games:0, wins:0, top3:0,
       rank:0,survival:0, damageDealt:0, damageTaken:0, skills:0, reflected:0,
@@ -289,6 +291,7 @@ onmessage = async function (event) {
     const startIndex = Math.max(0, Math.floor(Number(input.startIndex) || 0));
     const seed = (Number(input.seed)>>>0) || 20261019;
     const difficulty = input.difficulty === 'easy' ? 'easy' : 'hard';
+    const playerCount = Math.max(9, Math.min(heroIds.length, Math.round(Number(input.playerCount) || 10)));
     globalThis.BALANCE_SKILL_OVERRIDES = parseSwitches(input.skillSwitches);
     const matches=[];
     let rotationBlock=[], currentBlock = -1;
@@ -305,7 +308,7 @@ onmessage = async function (event) {
         Math.random = nativeRandom;
         currentBlock = block;
       }
-      matches.push(simulate(i,seed,difficulty,rotationBlock));
+      matches.push(simulate(i,seed,difficulty,rotationBlock,playerCount));
       const now=performance.now();
       if ((j+1)%updateEvery===0 || now-previousUpdate>=450 || j===n-1) {
         postMessage({type:'progress', completed:j+1,total:n,elapsedMs:now-runStarted});
@@ -314,8 +317,8 @@ onmessage = async function (event) {
         await new Promise(resolve => setTimeout(resolve,0));
       }
     }
-    const report=aggregate(matches);
-    postMessage({type:input.type==='batch'?'batchDone':'done', batchId:input.batchId, report, settings:{seed,difficulty,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 12 局輪換執行順位'});
+    const report=aggregate(matches,playerCount);
+    postMessage({type:input.type==='batch'?'batchDone':'done', batchId:input.batchId, report, settings:{seed,difficulty,playerCount,requested:n,startIndex,skillSwitches:globalThis.BALANCE_SKILL_OVERRIDES}, cancelled, engine:'正式 AI／戰鬥／合成規則；全 NPC 對局；500ms 時脈；每 12 局輪換參戰名單與順位'});
   } catch (error) {
     postMessage({type:'error',message:String(error?.stack||error)});
   } finally {

@@ -79,11 +79,11 @@ const GAME_CHARACTERS = {
       cd: 20,
       costSp: 20,
       combatOnly: true,
-      desc: "根據當前生命值比例造成 1～2 倍傷害（血越少攻擊力越高）"
+      desc: "根據當前生命值比例造成 1～1.5 倍傷害（血越少攻擊力越高）"
     },
     passive: {
       name: "我不會屈服的",
-      desc: "每被攻擊 3 次，立即恢復自身 12 點生命值"
+      desc: "每受到 4 次有效攻擊，立即恢復自身 12 點生命值"
     }
   },
 
@@ -256,13 +256,13 @@ const GAME_CHARACTERS = {
   }
   ,
   huangguocong: {
-    id: "huangguocong", name: "黃國蔥", title: "強制掉落／擊殺升階型",
+    id: "huangguocong", name: "黃國蔥", title: "強制掉落／累積傷害升階型",
     baseAtk: 13, baseDef: 12, maxHp: 124, hp: 124, maxSp: 120, sp: 120,
     alive: true, zone: "ly", bag: [],
     equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
     skill: { name: "太離譜了", icon: "📢", cd: 35, costSp: 25, combatOnly: true,
       desc: "攻擊 1 倍傷害；命中後對方背包（不含已穿戴裝備）隨機掉落 1 件道具到當前地區。空背包不掉落。" },
-    passive: { name: "戰神", desc: "每次真正淘汰敵人，隨機將身上一件可升階的裝備提升 1 階（最高紅裝；無可升階裝備時不觸發）。" }
+    passive: { name: "戰神", desc: "累積對敵人實際造成 50 點戰鬥傷害，隨機將一件已穿戴且可升階的裝備提升 1 階；傷害可跨不同對手累積，最高紅裝。" }
   },
   wuzhongxian: {
     id: "wuzhongxian", name: "吳忠憲", title: "追蹤／獵人型",
@@ -270,7 +270,7 @@ const GAME_CHARACTERS = {
     alive: true, zone: "ly", bag: [],
     equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
     skill: { name: "見鬼啦", icon: "👻", cd: 40, costSp: 25, combatOnly: true,
-      desc: "標記遭遇的敵人 30 秒；即使敵人移動，也能在地圖看見其當前所在區域。沒有直接傷害。" },
+      desc: "標記遭遇的敵人 30 秒；造成 1 倍技能傷害，並標記敵人 30 秒；即使敵人移動，也能在地圖看見其當前所在區域。" },
     passive: { name: "我猜我猜我猜猜猜", desc: "每次移動到另一區域後，首次搜刮若當地有可遭遇角色，必定觸發遭遇。" }
   },
   mayingjiu: {
@@ -280,6 +280,6 @@ const GAME_CHARACTERS = {
     equip: { weapon: null, head: null, chest: null, arm: null, leg: null, acc: null },
     skill: { name: "死亡之握", icon: "🤝", cd: 35, costSp: 25, combatOnly: true,
       desc: "成功命中使目標當前 SP 減少一半，造成被減少 SP 的一半傷害（無 SP 不傷害）。仍受護盾與簡單減傷影響。" },
-    passive: { name: "馬上就好", desc: "當前 SP 越低造成的戰鬥傷害越高，最低 1 倍、最高 1.5 倍。" }
+    passive: { name: "馬上就好", desc: "當前 SP 越低造成的戰鬥傷害越高，最低 1 倍、最高 2 倍。" }
   }
 };

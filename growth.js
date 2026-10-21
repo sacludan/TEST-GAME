@@ -105,7 +105,6 @@ function grantEliminationGrowth(killer, victim) {
   if (killer.alive) {
     grantGrowthExperience(killer, 5, killer.isPlayer ? '擊殺' : '');
     grantGrowthMastery(killer, 5);
-    if (typeof upgradeWarGodEquipment === 'function') upgradeWarGodEquipment(killer);
   }
   return true;
 }

@@ -58,7 +58,7 @@ const LobbyManager = {
     const summaryEl = document.getElementById('selected-char-summary');
     const inlineEl = document.getElementById('selected-char-inline');
     if (!cur) return;
-    if (summaryEl) summaryEl.textContent = `${cur.name}｜${cur.title}`;
+    if (summaryEl) summaryEl.textContent = cur.name;
     if (inlineEl) inlineEl.textContent = cur.name;
   },
 
@@ -115,7 +115,6 @@ const LobbyManager = {
                     : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 font-bold'
                 }">
           <span class="text-xs truncate w-full">${c.name}</span>
-          <span class="text-[9px] ${isSelected ? 'text-amber-400' : 'text-slate-500'}">${c.title}</span>
         </button>
       `;
     }).join("");
@@ -155,7 +154,6 @@ const LobbyManager = {
         <div class="flex justify-between items-center border-b border-slate-800 pb-1 mb-1.5 gap-2">
           <div class="min-w-0">
             <span class="text-sm font-black text-white">${cur.name}</span>
-            <div class="text-[10px] text-amber-300 font-bold truncate">${cur.title}</div>
           </div>
           <div class="text-[10px] font-mono text-slate-300 text-right shrink-0">
             HP <b class="text-rose-400">${cur.maxHp}</b> | SP <b class="text-sky-400">${cur.maxSp}</b><br>
@@ -294,7 +292,6 @@ const LobbyManager = {
                 }">
           <div>
             <div class="text-xs font-black ${isChecked ? 'text-white' : 'text-slate-300'}">${c.name}</div>
-            <div class="text-[9px] ${isChecked ? 'text-indigo-400' : 'text-slate-500'}">${c.title}</div>
           </div>
           <span class="text-xs font-black">${isChecked ? '✔' : '＋'}</span>
         </button>
